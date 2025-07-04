@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Desert Looks Back</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background-color: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            mix-blend-mode: difference;
+        }
+        #warning {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: #ccc;
+            font-family: monospace;
+            font-size: 1.2em;
+            pointer-events: none; /* Allows clicks to go through to the game */
+        }
+    </style>
+</head>
+<body>
+    <div id="crosshair"></div>
+    <div id="warning">There is nothing out here.</div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // 1. Scene Setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 5, 20);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+        
+        let audioContext;
+        function initAudio() {
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(50, audioContext.currentTime);
+                    gainNode.gain.setValueAtTime(0.04, audioContext.currentTime);
+                    oscillator.start();
+                } catch (e) {
+                    console.error("Web Audio API is not supported in this browser", e);
+                }
+            }
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }
+
+        // 2. Lighting
+        const ambientLight = new THREE.AmbientLight(0x404050, 0.2); 
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xf0f0ff, 0.3);
+        directionalLight.position.set(10, 20, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // 3. Create the World
+        const groundGeometry = new THREE.PlaneGeometry(5000, 5000);
+        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x9c8867 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // --- NEW: Add Stars ---
+        function createStars() {
+            const starVertices = [];
+            for (let i = 0; i < 10000; i++) {
+                const x = THREE.MathUtils.randFloatSpread(2000);
+                const y = THREE.MathUtils.randFloatSpread(2000);
+                const z = THREE.MathUtils.randFloatSpread(2000);
+                starVertices.push(x, y, z);
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+        createStars();
+
+        // --- NEW: Add Road ---
+        const roadGeometry = new THREE.PlaneGeometry(12, 600);
+        const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(150, 0.01, -200); // Position it to the side
+        scene.add(road);
+
+        // --- NEW: Add Gas Station ---
+        function createGasStation() {
+            const station = new THREE.Group();
+            const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+            const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x772222 });
+
+            // Main building
+            const mainBuilding = new THREE.Mesh(new THREE.BoxGeometry(30, 12, 15), buildingMaterial);
+            mainBuilding.position.y = 6;
+            mainBuilding.castShadow = true;
+            station.add(mainBuilding);
+
+            // Roof over pumps
+            const pumpRoof = new THREE.Mesh(new THREE.BoxGeometry(20, 1, 25), roofMaterial);
+            pumpRoof.position.set(-25, 10, 0);
+            pumpRoof.castShadow = true;
+            station.add(pumpRoof);
+
+            // Pumps
+            const pumpMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            const pump1 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), pumpMaterial);
+            pump1.position.set(-25, 2.5, -5);
+            pump1.castShadow = true;
+            station.add(pump1);
+            const pump2 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), pumpMaterial);
+            pump2.position.set(-25, 2.5, 5);
+            pump2.castShadow = true;
+            station.add(pump2);
+
+            // Sign
+            const signPole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 25, 8), pumpMaterial);
+            signPole.position.set(0, 12.5, -25);
+            station.add(signPole);
+            const signBoard = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 1), buildingMaterial);
+            signBoard.position.set(0, 26, -25);
+            station.add(signBoard);
+
+            station.position.set(150, 0, -500);
+            scene.add(station);
+        }
+        createGasStation();
+
+        // Add Cacti
+        const cactusMaterial = new THREE.MeshStandardMaterial({ color: 0x2e602e });
+        function createCactus(x, z) {
+            const cactus = new THREE.Group();
+            const mainHeight = Math.random() * 2.5 + 1;
+            const mainBody = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, mainHeight, 8), cactusMaterial);
+            mainBody.position.y = mainHeight / 2;
+            mainBody.castShadow = true;
+            cactus.add(mainBody);
+            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 8), cactusMaterial);
+            arm.position.set(0.3, mainHeight * 0.7, 0);
+            arm.rotation.z = -Math.PI / 2;
+            arm.castShadow = true;
+            cactus.add(arm);
+            cactus.position.set(x, 0, z);
+            scene.add(cactus);
+        }
+
+        // Add Shrubs
+        const shrubMaterial = new THREE.MeshStandardMaterial({ color: 0x1a3a1a });
+        function createShrub(x, z) {
+            const shrub = new THREE.Mesh(new THREE.SphereGeometry(Math.random() * 0.8 + 0.4, 8, 6), shrubMaterial);
+            shrub.position.set(x, 0.5, z);
+            shrub.castShadow = true;
+            scene.add(shrub);
+        }
+
+        for (let i = 0; i < 200; i++) {
+            const x = (Math.random() - 0.5) * 500;
+            const z = (Math.random() - 0.5) * 500;
+            if (x*x + z*z > 100) { 
+                if (Math.random() > 0.5) {
+                    createCactus(x, z);
+                } else {
+                    createShrub(x, z);
+                }
+            }
+        }
+        
+        // HORROR ENTITY: The Approaching Face
+        const face = new THREE.Group();
+        const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
+        const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(8, 11), faceMaterial);
+        face.add(facePlane);
+        const featureMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const leftEye = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), featureMaterial);
+        leftEye.position.set(-2, 2, 0.1);
+        face.add(leftEye);
+        const rightEye = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), featureMaterial);
+        rightEye.position.set(2, 2, 0.1);
+        face.add(rightEye);
+        const mouth = new THREE.Mesh(new THREE.PlaneGeometry(2, 3.5), featureMaterial);
+        mouth.position.set(0, -2.5, 0.1);
+        face.add(mouth);
+
+        face.position.set(0, 15, -800);
+        scene.add(face);
+
+        // 5. Player Controls
+        const controls = new PointerLockControls(camera, document.body);
+        document.body.addEventListener('click', () => { controls.lock(); initAudio(); });
+        scene.add(controls.getObject());
+
+        const clock = new THREE.Clock();
+        const cameraDirection = new THREE.Vector3();
+        const faceDirection = new THREE.Vector3();
+
+        // 6. Game Loop with Horror Logic
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            face.lookAt(camera.position);
+            camera.getWorldDirection(cameraDirection);
+            faceDirection.subVectors(face.position, camera.position).normalize();
+            const dotProduct = cameraDirection.dot(faceDirection);
+
+            if (dotProduct < 0.95) { 
+                const jumpDirection = new THREE.Vector3().subVectors(camera.position, face.position).normalize();
+                const jumpSpeed = 25.0;
+                if (face.position.distanceTo(camera.position) > 10) {
+                    face.position.add(jumpDirection.multiplyScalar(jumpSpeed * delta));
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
