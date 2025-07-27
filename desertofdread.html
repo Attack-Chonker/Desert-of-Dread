@@ -46,6 +46,8 @@
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
         // 1. Scene Setup
         const scene = new THREE.Scene();
@@ -83,10 +85,10 @@
         }
 
         // 2. Lighting
-        const ambientLight = new THREE.AmbientLight(0x404050, 0.2); 
+        const ambientLight = new THREE.AmbientLight(0x404050, 0.1);
         scene.add(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xf0f0ff, 0.3);
+        const directionalLight = new THREE.DirectionalLight(0xf0f0ff, 0.2);
         directionalLight.position.set(10, 20, 5);
         directionalLight.castShadow = true;
         scene.add(directionalLight);
@@ -99,7 +101,6 @@
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // --- NEW: Add Stars ---
         function createStars() {
             const starVertices = [];
             for (let i = 0; i < 10000; i++) {
@@ -116,58 +117,172 @@
         }
         createStars();
 
-        // --- NEW: Add Road ---
         const roadGeometry = new THREE.PlaneGeometry(12, 600);
         const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
         const road = new THREE.Mesh(roadGeometry, roadMaterial);
         road.rotation.x = -Math.PI / 2;
-        road.position.set(150, 0.01, -200); // Position it to the side
+        road.position.set(150, 0.01, -200); 
+        road.receiveShadow = true;
         scene.add(road);
 
-        // --- NEW: Add Gas Station ---
+        let neonSign, neonLight, interiorLight;
+        const colliders = []; // Array to hold objects for collision detection
+
+        // --- Add Gas Station ---
         function createGasStation() {
             const station = new THREE.Group();
-            const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-            const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x772222 });
+            station.position.set(150, 0, -500);
+            scene.add(station);
 
-            // Main building
-            const mainBuilding = new THREE.Mesh(new THREE.BoxGeometry(30, 12, 15), buildingMaterial);
-            mainBuilding.position.y = 6;
-            mainBuilding.castShadow = true;
-            station.add(mainBuilding);
+            const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.8, side: THREE.DoubleSide });
+            const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x772222, roughness: 0.8 });
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.9 });
+            const shelfMaterial = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
 
-            // Roof over pumps
+            // --- NEW: Create building with interior ---
+            const buildingWidth = 40;
+            const buildingDepth = 30;
+            const buildingHeight = 14;
+            const wallThickness = 0.5;
+
+            // Floor
+            const floor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), floorMaterial);
+            floor.position.y = wallThickness / 2;
+            floor.receiveShadow = true;
+            station.add(floor);
+
+            // Ceiling
+            const ceiling = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), roofMaterial);
+            ceiling.position.y = buildingHeight - (wallThickness / 2);
+            ceiling.castShadow = true;
+            station.add(ceiling);
+
+            // Walls
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, buildingHeight, wallThickness), buildingMaterial);
+            backWall.position.z = -buildingDepth / 2;
+            backWall.position.y = buildingHeight / 2;
+            station.add(backWall);
+            colliders.push(backWall);
+
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), buildingMaterial);
+            rightWall.position.x = buildingWidth / 2;
+            rightWall.position.y = buildingHeight / 2;
+            station.add(rightWall);
+            colliders.push(rightWall);
+            
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), buildingMaterial);
+            leftWall.position.x = -buildingWidth / 2;
+            leftWall.position.y = buildingHeight / 2;
+            station.add(leftWall);
+            colliders.push(leftWall);
+
+            // Front wall with doorway
+            const doorWidth = 6;
+            const doorHeight = 8;
+            const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), buildingMaterial);
+            frontWallLeft.position.set(-(buildingWidth/4 + doorWidth/4), buildingHeight/2, buildingDepth / 2);
+            station.add(frontWallLeft);
+            colliders.push(frontWallLeft);
+
+            const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), buildingMaterial);
+            frontWallRight.position.set(buildingWidth/4 + doorWidth/4, buildingHeight/2, buildingDepth / 2);
+            station.add(frontWallRight);
+            colliders.push(frontWallRight);
+
+            const frontWallTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, buildingHeight - doorHeight, wallThickness), buildingMaterial);
+            frontWallTop.position.set(0, doorHeight + (buildingHeight - doorHeight)/2, buildingDepth / 2);
+            station.add(frontWallTop);
+            colliders.push(frontWallTop);
+            
+            // --- NEW: Interior Amenities ---
+            // Counter
+            const counter = new THREE.Mesh(new THREE.BoxGeometry(15, 4, 3), shelfMaterial);
+            counter.position.set(-10, 2, -12);
+            counter.castShadow = true;
+            station.add(counter);
+            colliders.push(counter);
+
+            // Shelves
+            for(let i = 0; i < 3; i++) {
+                const shelf = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 2), shelfMaterial);
+                shelf.position.set(12, 4, -8 + i * 7);
+                shelf.castShadow = true;
+                station.add(shelf);
+                colliders.push(shelf);
+            }
+
+            // Interior Light
+            interiorLight = new THREE.PointLight(0xffeeaa, 300, 50, 2);
+            interiorLight.position.y = 12;
+            interiorLight.castShadow = true;
+            station.add(interiorLight);
+
+            // --- Exterior elements ---
             const pumpRoof = new THREE.Mesh(new THREE.BoxGeometry(20, 1, 25), roofMaterial);
-            pumpRoof.position.set(-25, 10, 0);
+            pumpRoof.position.set(-30, 10, 0);
             pumpRoof.castShadow = true;
             station.add(pumpRoof);
 
-            // Pumps
-            const pumpMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+            const pumpMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.2, roughness: 0.6 });
             const pump1 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), pumpMaterial);
-            pump1.position.set(-25, 2.5, -5);
+            pump1.position.set(-30, 2.5, -5);
             pump1.castShadow = true;
             station.add(pump1);
+            colliders.push(pump1);
             const pump2 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), pumpMaterial);
-            pump2.position.set(-25, 2.5, 5);
+            pump2.position.set(-30, 2.5, 5);
             pump2.castShadow = true;
             station.add(pump2);
+            colliders.push(pump2);
 
-            // Sign
+            const lightColor = 0xffe0ac;
+            const pumpLight1 = new THREE.PointLight(lightColor, 250, 40, 2);
+            pumpLight1.position.set(-30, 9, -5);
+            pumpLight1.castShadow = true;
+            station.add(pumpLight1);
+
+            const pumpLight2 = new THREE.PointLight(lightColor, 250, 40, 2);
+            pumpLight2.position.set(-30, 9, 5);
+            pumpLight2.castShadow = true;
+            station.add(pumpLight2);
+
             const signPole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 25, 8), pumpMaterial);
             signPole.position.set(0, 12.5, -25);
+            signPole.castShadow = true;
             station.add(signPole);
             const signBoard = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 1), buildingMaterial);
             signBoard.position.set(0, 26, -25);
+            signBoard.castShadow = true;
+            signBoard.receiveShadow = true;
             station.add(signBoard);
 
-            station.position.set(150, 0, -500);
-            scene.add(station);
-        }
-        createGasStation();
+            const fontLoader = new FontLoader();
+            fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+                const textGeometry = new TextGeometry('GAS', { font: font, size: 3, depth: 0.5, curveSegments: 12 });
+                textGeometry.center();
+                const neonMaterial = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+                neonSign = new THREE.Mesh(textGeometry, neonMaterial);
+                neonSign.position.z = 0.6;
+                signBoard.add(neonSign);
+                neonLight = new THREE.PointLight(0xff4444, 500, 30, 2);
+                neonLight.position.z = 2;
+                neonSign.add(neonLight);
+            });
 
-        // Add Cacti
+            // Update collider world positions
+            colliders.forEach(c => {
+                c.updateWorldMatrix(true, false);
+                c.geometry.computeBoundingBox();
+            });
+            
+            return [pumpLight1, pumpLight2];
+        }
+        const gasStationLights = createGasStation();
+
+
+        // Add Cacti & Shrubs
         const cactusMaterial = new THREE.MeshStandardMaterial({ color: 0x2e602e });
+        const shrubMaterial = new THREE.MeshStandardMaterial({ color: 0x1a3a1a });
         function createCactus(x, z) {
             const cactus = new THREE.Group();
             const mainHeight = Math.random() * 2.5 + 1;
@@ -183,29 +298,21 @@
             cactus.position.set(x, 0, z);
             scene.add(cactus);
         }
-
-        // Add Shrubs
-        const shrubMaterial = new THREE.MeshStandardMaterial({ color: 0x1a3a1a });
         function createShrub(x, z) {
             const shrub = new THREE.Mesh(new THREE.SphereGeometry(Math.random() * 0.8 + 0.4, 8, 6), shrubMaterial);
             shrub.position.set(x, 0.5, z);
             shrub.castShadow = true;
             scene.add(shrub);
         }
-
         for (let i = 0; i < 200; i++) {
             const x = (Math.random() - 0.5) * 500;
             const z = (Math.random() - 0.5) * 500;
             if (x*x + z*z > 100) { 
-                if (Math.random() > 0.5) {
-                    createCactus(x, z);
-                } else {
-                    createShrub(x, z);
-                }
+                if (Math.random() > 0.5) createCactus(x, z);
+                else createShrub(x, z);
             }
         }
         
-        // HORROR ENTITY: The Approaching Face
         const face = new THREE.Group();
         const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
         const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(8, 11), faceMaterial);
@@ -220,101 +327,63 @@
         const mouth = new THREE.Mesh(new THREE.PlaneGeometry(2, 3.5), featureMaterial);
         mouth.position.set(0, -2.5, 0.1);
         face.add(mouth);
-
         face.position.set(0, 15, -800);
         scene.add(face);
 
-        // 5. Player Controls
+        // 5. Player Controls & Collision
         const controls = new PointerLockControls(camera, document.body);
         document.body.addEventListener('click', () => { controls.lock(); initAudio(); });
-        scene.add(controls.getObject());
 
-        // Movement system with logging
         const keys = {};
         const movementSpeed = 50;
         const velocity = new THREE.Vector3();
         const direction = new THREE.Vector3();
 
-        // Debug logging function
-        function logMovement(message, data = {}) {
-            console.log(`[MOVEMENT] ${message}`, {
-                timestamp: Date.now(),
-                cameraPosition: camera.position.clone(),
-                velocity: velocity.clone(),
-                keysPressed: Object.keys(keys).filter(key => keys[key]),
-                ...data
-            });
+        document.addEventListener('keydown', (event) => { keys[event.code] = true; });
+        document.addEventListener('keyup', (event) => { keys[event.code] = false; });
+
+        function checkCollision(playerNextPos) {
+            const playerBox = new THREE.Box3().setFromCenterAndSize(playerNextPos, new THREE.Vector3(1, 8, 1));
+            for (const collider of colliders) {
+                const colliderBox = new THREE.Box3().setFromObject(collider);
+                if (playerBox.intersectsBox(colliderBox)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
-        // Keyboard event listeners with logging
-        document.addEventListener('keydown', (event) => {
-            keys[event.code] = true;
-            logMovement('Key pressed', { 
-                key: event.code, 
-                keyCode: event.keyCode,
-                isMovementKey: ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft'].includes(event.code)
-            });
-        });
-
-        document.addEventListener('keyup', (event) => {
-            keys[event.code] = false;
-            logMovement('Key released', { 
-                key: event.code, 
-                keyCode: event.keyCode 
-            });
-        });
-
-        // Movement update function with detailed logging
         function updateMovement(delta) {
-            // Reset velocity
-            velocity.x = 0;
-            velocity.z = 0;
+            velocity.set(0, 0, 0);
+            
+            controls.getDirection(direction);
+            direction.y = 0;
+            direction.normalize();
 
-            // Get camera direction
-            camera.getWorldDirection(direction);
+            const right = new THREE.Vector3(-direction.z, 0, direction.x);
 
-            // Calculate forward and right vectors
-            const forward = new THREE.Vector3(direction.x, 0, direction.z).normalize();
-            const right = new THREE.Vector3(-forward.z, 0, forward.x);
+            if (keys['KeyW']) velocity.add(direction);
+            if (keys['KeyS']) velocity.sub(direction);
+            if (keys['KeyD']) velocity.add(right);
+            if (keys['KeyA']) velocity.sub(right);
 
-            // Apply movement based on keys
-            if (keys['KeyW'] || keys['KeyS']) {
-                const forwardMultiplier = keys['KeyW'] ? 1 : -1;
-                velocity.add(forward.clone().multiplyScalar(forwardMultiplier));
-                logMovement('Forward/backward movement', { 
-                    forwardMultiplier, 
-                    forwardVector: forward.clone() 
-                });
-            }
-
-            if (keys['KeyA'] || keys['KeyD']) {
-                const rightMultiplier = keys['KeyA'] ? -1 : 1;
-                velocity.add(right.clone().multiplyScalar(rightMultiplier));
-                logMovement('Left/right movement', { 
-                    rightMultiplier, 
-                    rightVector: right.clone() 
-                });
-            }
-
-            // Apply speed and delta time
             if (velocity.length() > 0) {
                 velocity.normalize().multiplyScalar(movementSpeed * delta);
-                camera.position.add(velocity);
-                logMovement('Position updated', { 
-                    velocity: velocity.clone(),
-                    newPosition: camera.position.clone(),
-                    delta: delta,
-                    speed: movementSpeed
-                });
-            }
+                
+                // --- NEW: Collision Detection Logic ---
+                const player = controls.getObject();
+                
+                // Check X-axis movement
+                let nextPosX = new THREE.Vector3(player.position.x + velocity.x, player.position.y, player.position.z);
+                if (!checkCollision(nextPosX)) {
+                    player.position.x += velocity.x;
+                }
 
-            // Log current state every few frames
-            if (Math.random() < 0.1) { // Log ~10% of frames
-                logMovement('Current state', {
-                    isMoving: velocity.length() > 0,
-                    activeKeys: Object.keys(keys).filter(key => keys[key]),
-                    controlsLocked: controls.isLocked
-                });
+                // Check Z-axis movement
+                let nextPosZ = new THREE.Vector3(player.position.x, player.position.y, player.position.z + velocity.z);
+                if (!checkCollision(nextPosZ)) {
+                    player.position.z += velocity.z;
+                }
             }
         }
 
@@ -322,13 +391,31 @@
         const cameraDirection = new THREE.Vector3();
         const faceDirection = new THREE.Vector3();
 
-        // 6. Game Loop with Horror Logic
+        // 6. Game Loop
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
 
-            // Update movement
-            updateMovement(delta);
+            if (controls.isLocked) {
+                updateMovement(delta);
+            }
+
+            gasStationLights.forEach(light => {
+                const flicker = Math.sin(time * 15 + Math.random()) * 0.15 + 0.85;
+                const wave = Math.sin(time * 0.5 + light.position.z) * 50 + 200;
+                light.intensity = flicker * wave;
+            });
+
+            if (interiorLight) {
+                interiorLight.intensity = Math.sin(time * 3 + Math.random()) > 0 ? 300 : 280;
+            }
+
+            if (neonSign) {
+                const flashPattern = Math.sin(time * 7) > 0.5 || Math.sin(time * 0.8) > 0.9;
+                neonSign.visible = flashPattern;
+                neonLight.visible = flashPattern;
+            }
 
             face.lookAt(camera.position);
             camera.getWorldDirection(cameraDirection);
