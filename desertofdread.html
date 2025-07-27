@@ -229,6 +229,95 @@
         document.body.addEventListener('click', () => { controls.lock(); initAudio(); });
         scene.add(controls.getObject());
 
+        // Movement system with logging
+        const keys = {};
+        const movementSpeed = 50;
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+
+        // Debug logging function
+        function logMovement(message, data = {}) {
+            console.log(`[MOVEMENT] ${message}`, {
+                timestamp: Date.now(),
+                cameraPosition: camera.position.clone(),
+                velocity: velocity.clone(),
+                keysPressed: Object.keys(keys).filter(key => keys[key]),
+                ...data
+            });
+        }
+
+        // Keyboard event listeners with logging
+        document.addEventListener('keydown', (event) => {
+            keys[event.code] = true;
+            logMovement('Key pressed', { 
+                key: event.code, 
+                keyCode: event.keyCode,
+                isMovementKey: ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft'].includes(event.code)
+            });
+        });
+
+        document.addEventListener('keyup', (event) => {
+            keys[event.code] = false;
+            logMovement('Key released', { 
+                key: event.code, 
+                keyCode: event.keyCode 
+            });
+        });
+
+        // Movement update function with detailed logging
+        function updateMovement(delta) {
+            // Reset velocity
+            velocity.x = 0;
+            velocity.z = 0;
+
+            // Get camera direction
+            camera.getWorldDirection(direction);
+
+            // Calculate forward and right vectors
+            const forward = new THREE.Vector3(direction.x, 0, direction.z).normalize();
+            const right = new THREE.Vector3(-forward.z, 0, forward.x);
+
+            // Apply movement based on keys
+            if (keys['KeyW'] || keys['KeyS']) {
+                const forwardMultiplier = keys['KeyW'] ? 1 : -1;
+                velocity.add(forward.clone().multiplyScalar(forwardMultiplier));
+                logMovement('Forward/backward movement', { 
+                    forwardMultiplier, 
+                    forwardVector: forward.clone() 
+                });
+            }
+
+            if (keys['KeyA'] || keys['KeyD']) {
+                const rightMultiplier = keys['KeyA'] ? -1 : 1;
+                velocity.add(right.clone().multiplyScalar(rightMultiplier));
+                logMovement('Left/right movement', { 
+                    rightMultiplier, 
+                    rightVector: right.clone() 
+                });
+            }
+
+            // Apply speed and delta time
+            if (velocity.length() > 0) {
+                velocity.normalize().multiplyScalar(movementSpeed * delta);
+                camera.position.add(velocity);
+                logMovement('Position updated', { 
+                    velocity: velocity.clone(),
+                    newPosition: camera.position.clone(),
+                    delta: delta,
+                    speed: movementSpeed
+                });
+            }
+
+            // Log current state every few frames
+            if (Math.random() < 0.1) { // Log ~10% of frames
+                logMovement('Current state', {
+                    isMoving: velocity.length() > 0,
+                    activeKeys: Object.keys(keys).filter(key => keys[key]),
+                    controlsLocked: controls.isLocked
+                });
+            }
+        }
+
         const clock = new THREE.Clock();
         const cameraDirection = new THREE.Vector3();
         const faceDirection = new THREE.Vector3();
@@ -237,6 +326,9 @@
         function animate() {
             requestAnimationFrame(animate);
             const delta = clock.getDelta();
+
+            // Update movement
+            updateMovement(delta);
 
             face.lookAt(camera.position);
             camera.getWorldDirection(cameraDirection);
