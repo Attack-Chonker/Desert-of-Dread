@@ -161,38 +161,63 @@
             const backWall = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, buildingHeight, wallThickness), buildingMaterial);
             backWall.position.z = -buildingDepth / 2;
             backWall.position.y = buildingHeight / 2;
+            backWall.name = 'backWall';
             station.add(backWall);
             colliders.push(backWall);
 
             const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), buildingMaterial);
             rightWall.position.x = buildingWidth / 2;
             rightWall.position.y = buildingHeight / 2;
+            rightWall.name = 'rightWall';
             station.add(rightWall);
             colliders.push(rightWall);
             
             const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), buildingMaterial);
             leftWall.position.x = -buildingWidth / 2;
             leftWall.position.y = buildingHeight / 2;
+            leftWall.name = 'leftWall';
             station.add(leftWall);
             colliders.push(leftWall);
 
-            // Front wall with doorway
-            const doorWidth = 6;
+            // Front wall with doorway - make doorway wider
+            const doorWidth = 8; // Increased from 6 to 8
             const doorHeight = 8;
             const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), buildingMaterial);
             frontWallLeft.position.set(-(buildingWidth/4 + doorWidth/4), buildingHeight/2, buildingDepth / 2);
+            frontWallLeft.name = 'frontWallLeft';
             station.add(frontWallLeft);
             colliders.push(frontWallLeft);
 
             const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), buildingMaterial);
             frontWallRight.position.set(buildingWidth/4 + doorWidth/4, buildingHeight/2, buildingDepth / 2);
+            frontWallRight.name = 'frontWallRight';
             station.add(frontWallRight);
             colliders.push(frontWallRight);
 
             const frontWallTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, buildingHeight - doorHeight, wallThickness), buildingMaterial);
             frontWallTop.position.set(0, doorHeight + (buildingHeight - doorHeight)/2, buildingDepth / 2);
+            frontWallTop.name = 'frontWallTop';
             station.add(frontWallTop);
             colliders.push(frontWallTop);
+
+            // Add door frame for visual clarity - NO COLLISION
+            const doorFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+            const doorFrameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, doorHeight, wallThickness), doorFrameMaterial);
+            doorFrameLeft.position.set(-doorWidth/2 + 0.1, doorHeight/2, buildingDepth/2);
+            station.add(doorFrameLeft);
+
+            const doorFrameRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, doorHeight, wallThickness), doorFrameMaterial);
+            doorFrameRight.position.set(doorWidth/2 - 0.1, doorHeight/2, buildingDepth/2);
+            station.add(doorFrameRight);
+
+            const doorFrameTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth - 0.4, 0.2, wallThickness), doorFrameMaterial);
+            doorFrameTop.position.set(0, doorHeight, buildingDepth/2);
+            station.add(doorFrameTop);
+
+            // Add a subtle light at the doorway to make it more visible
+            const doorLight = new THREE.PointLight(0xffeeaa, 50, 10, 2);
+            doorLight.position.set(0, doorHeight/2, buildingDepth/2 + 1);
+            station.add(doorLight);
             
             // --- NEW: Interior Amenities ---
             // Counter
@@ -343,15 +368,42 @@
         document.addEventListener('keyup', (event) => { keys[event.code] = false; });
 
         function checkCollision(playerNextPos) {
-            const playerBox = new THREE.Box3().setFromCenterAndSize(playerNextPos, new THREE.Vector3(1, 8, 1));
+            // Much shorter collision box to fit through door
+            const playerBox = new THREE.Box3().setFromCenterAndSize(playerNextPos, new THREE.Vector3(0.8, 2, 0.8));
+            
             for (const collider of colliders) {
                 const colliderBox = new THREE.Box3().setFromObject(collider);
                 if (playerBox.intersectsBox(colliderBox)) {
+                    // Debug: log collision details
+                    console.log('[COLLISION] Blocked by:', collider.name || 'unknown object', {
+                        playerPos: playerNextPos,
+                        colliderPos: collider.position,
+                        playerBox: playerBox,
+                        colliderBox: colliderBox
+                    });
                     return true;
                 }
             }
             return false;
         }
+
+        // Temporary debug: Press 'C' to toggle collision visualization
+        let showColliders = false;
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'KeyC') {
+                showColliders = !showColliders;
+                colliders.forEach(collider => {
+                    if (showColliders) {
+                        collider.material.wireframe = true;
+                        collider.material.color.setHex(0xff0000);
+                    } else {
+                        collider.material.wireframe = false;
+                        collider.material.color.setHex(0xdddddd);
+                    }
+                });
+                console.log('Collision visualization:', showColliders ? 'ON' : 'OFF');
+            }
+        });
 
         function updateMovement(delta) {
             velocity.set(0, 0, 0);
