@@ -7,7 +7,19 @@ export function setupControls(camera) {
     const controls = new PointerLockControls(camera, document.body);
     document.body.addEventListener('click', () => { 
         controls.lock(); 
-        initAudio(); 
+        initAudio();
+        if (state.tvVideoElement && !state.videoAudioContext) {
+            state.tvVideoElement.muted = false;
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaElementSource(state.tvVideoElement);
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 0;
+            source.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            state.setVideoAudioContext(audioContext);
+            state.setVideoAudioSource(source);
+            state.setVideoGainNode(gainNode);
+        }
     });
     document.addEventListener('keydown', (event) => { state.keys[event.code] = true; });
     document.addEventListener('keyup', (event) => { state.keys[event.code] = false; });

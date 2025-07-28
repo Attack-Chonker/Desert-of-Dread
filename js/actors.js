@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import * as state from './state.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { CSS3DObject } from 'three/addons/renderers/CSS3DRenderer.js';
 
 export function createLightingAndWorld(scene) {
     const ambientLight = new THREE.AmbientLight(0x404050, 0.2);
@@ -205,9 +208,215 @@ export function createGasStation(scene) {
         station.add(neonLight);
         state.neonLights.push(neonLight);
     }
-    state.colliders.forEach(c => {
-        c.updateWorldMatrix(true, false);
-        c.geometry.computeBoundingBox();
+}
+
+export function createSaloon(scene) {
+    const saloon = new THREE.Group();
+    saloon.position.set(-150, 0, -500); // Opposite the gas station
+    scene.add(saloon);
+
+    // Re-using materials for consistent style
+    const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x3d2c1a, roughness: 0.8 });
+    const darkWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x241a0f, roughness: 0.9 });
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9, side: THREE.DoubleSide });
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+
+    const buildingWidth = 40, buildingDepth = 30, buildingHeight = 12, wallThickness = 0.5;
+
+    // Floor
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), floorMaterial);
+    floor.position.y = wallThickness / 2;
+    floor.receiveShadow = true;
+    saloon.add(floor);
+
+    // Ceiling
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), wallMaterial);
+    ceiling.position.y = buildingHeight - (wallThickness / 2);
+    ceiling.castShadow = true;
+    saloon.add(ceiling);
+
+    // Walls
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, buildingHeight, wallThickness), wallMaterial);
+    backWall.position.z = -buildingDepth / 2;
+    backWall.position.y = buildingHeight / 2;
+    saloon.add(backWall);
+    state.colliders.push(backWall);
+
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), wallMaterial);
+    rightWall.position.x = buildingWidth / 2;
+    rightWall.position.y = buildingHeight / 2;
+    saloon.add(rightWall);
+    state.colliders.push(rightWall);
+
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), wallMaterial);
+    leftWall.position.x = -buildingWidth / 2;
+    leftWall.position.y = buildingHeight / 2;
+    saloon.add(leftWall);
+    state.colliders.push(leftWall);
+
+    // Front wall with doorway
+    const doorWidth = 10, doorHeight = 8;
+    const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth / 2 - doorWidth / 2, buildingHeight, wallThickness), wallMaterial);
+    frontWallLeft.position.set(-(buildingWidth / 4 + doorWidth / 4), buildingHeight / 2, buildingDepth / 2);
+    saloon.add(frontWallLeft);
+    state.colliders.push(frontWallLeft);
+
+    const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth / 2 - doorWidth / 2, buildingHeight, wallThickness), wallMaterial);
+    frontWallRight.position.set(buildingWidth / 4 + doorWidth / 4, buildingHeight / 2, buildingDepth / 2);
+    saloon.add(frontWallRight);
+    state.colliders.push(frontWallRight);
+
+    const frontWallTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, buildingHeight - doorHeight, wallThickness), wallMaterial);
+    frontWallTop.position.set(0, doorHeight + (buildingHeight - doorHeight) / 2, buildingDepth / 2);
+    saloon.add(frontWallTop);
+    state.colliders.push(frontWallTop);
+
+    // The Bar
+    const barHeight = 4, barDepth = 3, barWidth = buildingWidth - 10;
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(barWidth, barHeight, barDepth), darkWoodMaterial);
+    bar.position.set(0, barHeight / 2, -buildingDepth / 2 + barDepth / 2 + 2);
+    bar.castShadow = true;
+    saloon.add(bar);
+    state.colliders.push(bar);
+
+    // --- Fireplace Assembly ---
+    const fireplaceAssembly = new THREE.Group();
+    saloon.add(fireplaceAssembly);
+
+    // --- Materials ---
+    const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.9 });
+
+    // --- Dimensions ---
+    const chimneyWidth = 7;
+    const chimneyDepth = 3;
+    const openingWidth = 5;
+    const openingHeight = 4;
+
+    // --- Positioning and Rotation ---
+    // Place it on the right wall, facing inwards.
+    const assemblyX = buildingWidth / 2 - chimneyDepth / 2;
+    fireplaceAssembly.position.set(assemblyX, 0, 0);
+    fireplaceAssembly.rotation.y = -Math.PI / 2; // Rotate the whole thing to face into the tavern.
+
+    // --- Chimney (relative to the rotated assembly) ---
+    const chimney = new THREE.Mesh(
+        new THREE.BoxGeometry(chimneyWidth, buildingHeight + 5, chimneyDepth),
+        stoneMaterial
+    );
+    chimney.position.y = (buildingHeight + 5) / 2;
+    fireplaceAssembly.add(chimney);
+    state.colliders.push(chimney);
+
+    // --- Hearth ---
+    const hearth = new THREE.Mesh(
+        new THREE.BoxGeometry(chimneyWidth + 2, 0.5, chimneyDepth + 1),
+        stoneMaterial
+    );
+    hearth.position.y = 0.25;
+    fireplaceAssembly.add(hearth);
+    state.colliders.push(hearth);
+
+    // --- The Fire (Video Screen) ---
+    const video = document.createElement('video');
+    video.src = 'assets/fireplace.mp4';
+    video.crossOrigin = 'anonymous';
+    video.loop = true;
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    state.setTvVideoElement(video);
+    
+    const videoTexture = new THREE.VideoTexture(video);
+    const fireScreenMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
+    const fireScreen = new THREE.Mesh(
+        new THREE.PlaneGeometry(openingWidth, openingHeight),
+        fireScreenMaterial
+    );
+
+    // Position the fire inside the chimney opening
+    fireScreen.position.set(0, openingHeight / 2 + 0.5, chimneyDepth / 2 + 0.01); // Bring it just in front of the chimney face
+    fireplaceAssembly.add(fireScreen);
+
+    // --- Firelight ---
+    const fireLight = new THREE.PointLight(0xffaa33, 1, 30, 2);
+    fireLight.position.set(0, openingHeight / 2 + 1, chimneyDepth / 2 + 1);
+    fireplaceAssembly.add(fireLight);
+    state.flickeringLights.push(fireLight);
+
+    // --- Update audio position ---
+    const audioPosition = new THREE.Vector3();
+    fireScreen.getWorldPosition(audioPosition); // Get world position of the screen itself
+    state.setTvPosition(audioPosition);
+
+    // Porch
+    const porchDepth = 10;
+    const porchFloor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 0.5, porchDepth), woodMaterial);
+    porchFloor.position.set(0, 0.25, buildingDepth / 2 + porchDepth / 2);
+    porchFloor.receiveShadow = true;
+    saloon.add(porchFloor);
+
+    const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 0.5, porchDepth), darkWoodMaterial);
+    porchRoof.position.set(0, buildingHeight + 0.25, buildingDepth / 2 + porchDepth / 2);
+    porchRoof.castShadow = true;
+    saloon.add(porchRoof);
+    
+    for (let i = -1; i <= 1; i++) {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, buildingHeight, 8), darkWoodMaterial);
+        post.position.set(i * (buildingWidth / 2.5), buildingHeight / 2, buildingDepth / 2 + porchDepth - 1);
+        post.castShadow = true;
+        saloon.add(post);
+        state.colliders.push(post);
+    }
+    
+    // Add a simple sign
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 0.5), woodMaterial);
+    sign.position.set(0, buildingHeight + 5, buildingDepth/2);
+    saloon.add(sign);
+
+    const loader = new FontLoader();
+    loader.load('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/fonts/helvetiker_bold.typeface.json', function (font) {
+        const textMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFD700,
+            emissive: 0xFFD700,
+            emissiveIntensity: 1
+        });
+        const text = "Tachonker's Tavern";
+        const textGeometry = new TextGeometry(text, {
+            font: font,
+            size: 1.5,
+            height: 0.2,
+        });
+        textGeometry.computeBoundingBox();
+        const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
+        const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+        textMesh.position.set(-textWidth / 2, buildingHeight + 4, buildingDepth / 2 + 0.3);
+        saloon.add(textMesh);
+        
+        // Add individual lights for flickering effect
+        const lettersToFlicker = ["T", "a", "c", "h", "o", "n", "k", "e", "r", "'", "s", " ", "T", "a", "v", "e", "r", "n"];
+        let xOffset = 0;
+        for (let i = 0; i < text.length; i++) {
+            const letter = text[i];
+            if (letter === ' ') {
+                xOffset += 0.5; // Adjust space width as needed
+                continue;
+            }
+            const letterGeom = new TextGeometry(letter, {
+                font: font,
+                size: 1.5,
+                height: 0.2,
+            });
+            letterGeom.computeBoundingBox();
+            const letterWidth = letterGeom.boundingBox.max.x - letterGeom.boundingBox.min.x;
+            
+            if (['a', 'c', 'o', 'r'].includes(letter.toLowerCase())) {
+                const letterLight = new THREE.PointLight(0xFFD700, 2, 5, 2);
+                letterLight.position.set(-textWidth / 2 + xOffset + letterWidth / 2, buildingHeight + 5, buildingDepth / 2 + 1);
+                saloon.add(letterLight);
+                state.flickeringLights.push(letterLight);
+            }
+            xOffset += letterWidth;
+        }
     });
 }
 

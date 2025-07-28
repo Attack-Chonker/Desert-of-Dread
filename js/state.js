@@ -4,6 +4,8 @@ import * as THREE from 'three';
 export let audioContext;
 export let rumbleNode;
 export let neonLights = [];
+export let flickeringLights = [];
+export let tvVideoElement, tvPosition, videoAudioContext, videoAudioSource, videoGainNode;
 export let cat, voidPortal, voidLight, catHead, tentacles = [], moon, catMoon, moonLight, catMoonLight;
 export let catState = 'idle'; 
 export let catStateTimer = 0;
@@ -79,6 +81,26 @@ export function setNextGhostAppearance(newTime) {
 
 export function setScreenShake(newScreenShake) {
     screenShake = newScreenShake;
+}
+
+export function setTvVideoElement(video) {
+    tvVideoElement = video;
+}
+
+export function setTvPosition(position) {
+    tvPosition = position;
+}
+
+export function setVideoAudioContext(context) {
+    videoAudioContext = context;
+}
+
+export function setVideoAudioSource(source) {
+    videoAudioSource = source;
+}
+
+export function setVideoGainNode(node) {
+    videoGainNode = node;
 }
 
 export function addTentacle(tentacle) {

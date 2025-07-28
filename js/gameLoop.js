@@ -3,6 +3,21 @@ import * as state from './state.js';
 import { playMeow } from './audio.js';
 import { updateMovement } from './controls.js';
 
+function updateTvVolume(camera) {
+    if (!state.tvVideoElement || !state.tvPosition || !state.videoGainNode) return;
+
+    const saloonPosition = new THREE.Vector3(-150, 0, -500);
+    const tvWorldPosition = new THREE.Vector3().copy(state.tvPosition).add(saloonPosition);
+    const distance = camera.position.distanceTo(tvWorldPosition);
+
+    let volume = 0;
+    if (distance < 30) {
+        volume = Math.max(0, 1 - (distance / 30));
+    }
+    
+    state.videoGainNode.gain.setValueAtTime(volume, state.videoAudioContext.currentTime);
+}
+
 export function createGameLoop(scene, camera, renderer, controls, face) {
     function animate() {
         requestAnimationFrame(animate);
@@ -160,6 +175,11 @@ export function createGameLoop(scene, camera, renderer, controls, face) {
         }
 
         state.neonLights.forEach(light => { if (Math.random() > 0.98) { light.intensity = light.intensity > 0 ? 0 : 150; } });
+        state.flickeringLights.forEach(light => {
+            if (Math.random() > 0.9) {
+                light.intensity = light.intensity > 0 ? 0 : 2;
+            }
+        });
         
         if (state.ghostState === 'hidden') {
             if (controls.isLocked && time > state.nextGhostAppearance) {
@@ -174,7 +194,7 @@ export function createGameLoop(scene, camera, renderer, controls, face) {
                 face.visible = true;
             }
         } else if (state.ghostState === 'visible') {
-            state.setGhostTimer(state.ghostState - delta);
+            state.setGhostTimer(state.ghostTimer - delta);
             if (state.ghostTimer <= 0) {
                 state.setGhostState('hidden');
                 face.visible = false;
@@ -184,6 +204,7 @@ export function createGameLoop(scene, camera, renderer, controls, face) {
             }
         }
 
+        updateTvVolume(camera);
         renderer.render(scene, camera);
     }
     animate();
