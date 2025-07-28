@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Desert Looks Back</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
+        body { margin: 0; overflow: hidden; background-color: #000; cursor: pointer; }
         canvas { display: block; }
         #crosshair {
             position: absolute;
@@ -46,15 +46,13 @@
     <script type="module">
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
-        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
-        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
         // 1. Scene Setup
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a1a);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(150, 5, -300);
+        camera.position.set(0, 4, 20); 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -62,51 +60,122 @@
         renderer.shadowMap.enabled = true;
         document.body.appendChild(renderer.domElement);
         
+        // --- Global Variables ---
         let audioContext;
+        let rumbleNode;
+        let neonLights = [];
+        let cat, voidPortal, voidLight, catHead, tentacles = [], moon, catMoon, moonLight, catMoonLight;
+        let catState = 'idle'; 
+        let catStateTimer = 0;
+        const colliders = [];
+        const keys = {};
+        const movementSpeed = 50;
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        const clock = new THREE.Clock();
+        const cameraDirection = new THREE.Vector3();
+        let ghostState = 'hidden', ghostTimer = 0, nextGhostAppearance = 15.0;
+        let screenShake = { intensity: 0, duration: 0 };
+
+        // --- Audio Functions ---
+        function playMeow() {
+            if (!audioContext) return;
+            const meowOscillator = audioContext.createOscillator();
+            const meowGain = audioContext.createGain();
+            meowOscillator.connect(meowGain);
+            meowGain.connect(audioContext.destination);
+            
+            meowOscillator.type = 'sine';
+            const now = audioContext.currentTime;
+            meowOscillator.frequency.setValueAtTime(800, now);
+            meowOscillator.frequency.exponentialRampToValueAtTime(400, now + 0.2);
+            
+            meowGain.gain.setValueAtTime(0.2, now);
+            meowGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+            
+            meowOscillator.start(now);
+            meowOscillator.stop(now + 0.2);
+        }
+
         function initAudio() {
             if (!audioContext) {
                 try {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                    const oscillator = audioContext.createOscillator();
-                    const gainNode = audioContext.createGain();
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioContext.destination);
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(50, audioContext.currentTime);
-                    gainNode.gain.setValueAtTime(0.04, audioContext.currentTime);
-                    oscillator.start();
-                } catch (e) {
-                    console.error("Web Audio API is not supported in this browser", e);
-                }
+                    const bufferSize = 2 * audioContext.sampleRate;
+                    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+                    const whiteNoise = audioContext.createBufferSource();
+                    whiteNoise.buffer = noiseBuffer;
+                    whiteNoise.loop = true;
+                    whiteNoise.start(0);
+                    const windFilter = audioContext.createBiquadFilter();
+                    windFilter.type = 'bandpass';
+                    windFilter.frequency.setValueAtTime(700, audioContext.currentTime); 
+                    windFilter.Q.setValueAtTime(0.8, audioContext.currentTime);
+                    const gustLFO = audioContext.createOscillator();
+                    gustLFO.type = 'sine';
+                    gustLFO.frequency.setValueAtTime(0.2, audioContext.currentTime); 
+                    const gustLFOGain = audioContext.createGain();
+                    gustLFOGain.gain.setValueAtTime(80, audioContext.currentTime);
+                    gustLFO.connect(gustLFOGain);
+                    gustLFOGain.connect(windFilter.frequency);
+                    gustLFO.start(0);
+                    const masterGain = audioContext.createGain();
+                    const volumeLFO = audioContext.createOscillator();
+                    volumeLFO.type = 'sine';
+                    volumeLFO.frequency.setValueAtTime(1 / 22, audioContext.currentTime); 
+                    const volumeLFOGain = audioContext.createGain();
+                    const maxVolume = 0.008;
+                    volumeLFOGain.gain.setValueAtTime(maxVolume / 2, audioContext.currentTime); 
+                    volumeLFO.connect(volumeLFOGain);
+                    masterGain.gain.setValueAtTime(maxVolume / 2, audioContext.currentTime);
+                    volumeLFOGain.connect(masterGain.gain);
+                    volumeLFO.start(0);
+                    whiteNoise.connect(windFilter);
+                    windFilter.connect(masterGain);
+                    masterGain.connect(audioContext.destination);
+                    const rumbleOscillator = audioContext.createOscillator();
+                    const rumbleGain = audioContext.createGain();
+                    rumbleOscillator.connect(rumbleGain);
+                    rumbleGain.connect(audioContext.destination);
+                    rumbleOscillator.type = 'sawtooth';
+                    rumbleOscillator.frequency.setValueAtTime(40, audioContext.currentTime);
+                    rumbleGain.gain.setValueAtTime(0, audioContext.currentTime);
+                    rumbleOscillator.start();
+                    rumbleNode = rumbleGain;
+                } catch (e) { console.error("Web Audio API is not supported", e); }
             }
-            if (audioContext && audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
+            if (audioContext && audioContext.state === 'suspended') { audioContext.resume(); }
         }
 
-        // 2. Lighting
-        const ambientLight = new THREE.AmbientLight(0x404050, 0.1);
-        scene.add(ambientLight);
-
-        const directionalLight = new THREE.DirectionalLight(0xf0f0ff, 0.2);
-        directionalLight.position.set(10, 20, 5);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
-
-        // 3. Create the World
-        const groundGeometry = new THREE.PlaneGeometry(5000, 5000);
-        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x9c8867 });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        scene.add(ground);
+        // --- Scene Creation Functions ---
+        function createLightingAndWorld() {
+            const ambientLight = new THREE.AmbientLight(0x404050, 0.2);
+            scene.add(ambientLight);
+            moonLight = new THREE.DirectionalLight(0x8a95a1, 0.6);
+            moonLight.position.set(100, 200, 100);
+            moonLight.castShadow = true;
+            moonLight.shadow.mapSize.width = 2048;
+            moonLight.shadow.mapSize.height = 2048;
+            scene.add(moonLight);
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x6b5a42 }));
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            const road = new THREE.Mesh(new THREE.PlaneGeometry(8, 600), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+            road.rotation.x = -Math.PI / 2;
+            road.position.set(150, 0.01, -200);
+            road.receiveShadow = true;
+            scene.add(road);
+        }
 
         function createStars() {
             const starVertices = [];
             for (let i = 0; i < 10000; i++) {
-                const x = THREE.MathUtils.randFloatSpread(2000);
-                const y = THREE.MathUtils.randFloatSpread(2000);
-                const z = THREE.MathUtils.randFloatSpread(2000);
+                const x = THREE.MathUtils.randFloatSpread(3000);
+                const y = THREE.MathUtils.randFloatSpread(3000);
+                const z = THREE.MathUtils.randFloatSpread(3000);
                 starVertices.push(x, y, z);
             }
             const starGeometry = new THREE.BufferGeometry();
@@ -115,357 +184,207 @@
             const stars = new THREE.Points(starGeometry, starMaterial);
             scene.add(stars);
         }
-        createStars();
 
-        const roadGeometry = new THREE.PlaneGeometry(12, 600);
-        const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
-        const road = new THREE.Mesh(roadGeometry, roadMaterial);
-        road.rotation.x = -Math.PI / 2;
-        road.position.set(150, 0.01, -200); 
-        road.receiveShadow = true;
-        scene.add(road);
+        function createMoon() {
+            const moonSize = 50;
+            const moonGeometry = new THREE.SphereGeometry(moonSize, 64, 64);
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 512;
+            context.fillStyle = '#f0f0e8';
+            context.fillRect(0, 0, 512, 512);
+            for (let i = 0; i < 50; i++) {
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const radius = Math.random() * 30 + 5;
+                const gray = Math.floor(Math.random() * 50 + 150);
+                context.fillStyle = `rgba(${gray}, ${gray}, ${gray}, ${Math.random() * 0.5 + 0.2})`;
+                context.beginPath();
+                context.arc(x, y, radius, 0, Math.PI * 2);
+                context.fill();
+            }
+            const moonTexture = new THREE.CanvasTexture(canvas);
+            const moonMaterial = new THREE.MeshStandardMaterial({
+                map: moonTexture,
+                emissive: 0xffffff,
+                emissiveMap: moonTexture,
+                emissiveIntensity: 0.8,
+                transparent: true
+            });
+            moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.position.set(200, 300, -800);
+            moon.rotation.y = Math.PI;
+            scene.add(moon);
+        }
 
-        let neonSign, neonLight, interiorLight;
-        let garbageCanThreeHead; // To control the object's head
-        const colliders = []; // Array to hold objects for collision detection
-
-        // --- Add Gas Station ---
         function createGasStation() {
             const station = new THREE.Group();
             station.position.set(150, 0, -500);
             scene.add(station);
-
-            const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.8, side: THREE.DoubleSide });
-            const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x772222, roughness: 0.8 });
-            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.9 });
-            const shelfMaterial = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
-
-            // --- NEW: Create building with interior ---
-            const buildingWidth = 40;
-            const buildingDepth = 30;
-            const buildingHeight = 14;
-            const wallThickness = 0.5;
-
-            // Floor
+            const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x3d2c1a, roughness: 0.8 });
+            const darkWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x241a0f, roughness: 0.9 });
+            const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9, side: THREE.DoubleSide });
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+            const buildingWidth = 50, buildingDepth = 25, buildingHeight = 10, wallThickness = 0.5;
             const floor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), floorMaterial);
             floor.position.y = wallThickness / 2;
             floor.receiveShadow = true;
             station.add(floor);
-
-            // Ceiling
-            const ceiling = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), roofMaterial);
+            const ceiling = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), wallMaterial);
             ceiling.position.y = buildingHeight - (wallThickness / 2);
             ceiling.castShadow = true;
             station.add(ceiling);
-
-            // Walls
-            const backWall = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, buildingHeight, wallThickness), buildingMaterial);
+            const backWall = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, buildingHeight, wallThickness), wallMaterial);
             backWall.position.z = -buildingDepth / 2;
             backWall.position.y = buildingHeight / 2;
-            backWall.name = 'backWall';
             station.add(backWall);
             colliders.push(backWall);
-
-            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), buildingMaterial);
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), wallMaterial);
             rightWall.position.x = buildingWidth / 2;
             rightWall.position.y = buildingHeight / 2;
-            rightWall.name = 'rightWall';
             station.add(rightWall);
             colliders.push(rightWall);
-            
-            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), buildingMaterial);
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), wallMaterial);
             leftWall.position.x = -buildingWidth / 2;
             leftWall.position.y = buildingHeight / 2;
-            leftWall.name = 'leftWall';
             station.add(leftWall);
             colliders.push(leftWall);
-
-            // Front wall with doorway - make doorway wider
-            const doorWidth = 8; // Increased from 6 to 8
-            const doorHeight = 8;
-            const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), buildingMaterial);
+            const doorWidth = 8, doorHeight = 7;
+            const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), wallMaterial);
             frontWallLeft.position.set(-(buildingWidth/4 + doorWidth/4), buildingHeight/2, buildingDepth / 2);
-            frontWallLeft.name = 'frontWallLeft';
             station.add(frontWallLeft);
             colliders.push(frontWallLeft);
-
-            const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), buildingMaterial);
+            const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), wallMaterial);
             frontWallRight.position.set(buildingWidth/4 + doorWidth/4, buildingHeight/2, buildingDepth / 2);
-            frontWallRight.name = 'frontWallRight';
             station.add(frontWallRight);
             colliders.push(frontWallRight);
-
-            const frontWallTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, buildingHeight - doorHeight, wallThickness), buildingMaterial);
+            const frontWallTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, buildingHeight - doorHeight, wallThickness), wallMaterial);
             frontWallTop.position.set(0, doorHeight + (buildingHeight - doorHeight)/2, buildingDepth / 2);
-            frontWallTop.name = 'frontWallTop';
             station.add(frontWallTop);
             colliders.push(frontWallTop);
-
-            // Add door frame for visual clarity - NO COLLISION
-            const doorFrameMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-            const doorFrameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, doorHeight, wallThickness), doorFrameMaterial);
-            doorFrameLeft.position.set(-doorWidth/2 + 0.1, doorHeight/2, buildingDepth/2);
-            station.add(doorFrameLeft);
-
-            const doorFrameRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, doorHeight, wallThickness), doorFrameMaterial);
-            doorFrameRight.position.set(doorWidth/2 - 0.1, doorHeight/2, buildingDepth/2);
-            station.add(doorFrameRight);
-
-            const doorFrameTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth - 0.4, 0.2, wallThickness), doorFrameMaterial);
-            doorFrameTop.position.set(0, doorHeight, buildingDepth/2);
-            station.add(doorFrameTop);
-
-            // Add a subtle light at the doorway to make it more visible
-            const doorLight = new THREE.PointLight(0xffeeaa, 50, 10, 2);
-            doorLight.position.set(0, doorHeight/2, buildingDepth/2 + 1);
-            station.add(doorLight);
-            
-            // --- NEW: Interior Amenities ---
-            // Counter
-            const counter = new THREE.Mesh(new THREE.BoxGeometry(15, 4, 3), shelfMaterial);
-            counter.position.set(-10, 2, -12);
+            const facade = new THREE.Group();
+            station.add(facade);
+            const facadeSteps = [ { w: 40, h: 4, x: 0 }, { w: 35, h: 3, x: 0 }, { w: 25, h: 2, x: 0 } ];
+            let currentHeight = buildingHeight;
+            facadeSteps.forEach(step => {
+                const facadeBlock = new THREE.Mesh(new THREE.BoxGeometry(step.w, step.h, 1), wallMaterial);
+                facadeBlock.position.set(step.x, currentHeight + step.h / 2, buildingDepth / 2 + 0.5);
+                facadeBlock.castShadow = true;
+                facade.add(facadeBlock);
+                currentHeight += step.h;
+            });
+            const porchDepth = 8;
+            const porchFloor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 0.5, porchDepth), woodMaterial);
+            porchFloor.position.set(0, 0.25, buildingDepth / 2 + porchDepth / 2);
+            porchFloor.receiveShadow = true;
+            station.add(porchFloor);
+            const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 0.5, porchDepth), darkWoodMaterial);
+            porchRoof.position.set(0, buildingHeight + 0.25, buildingDepth / 2 + porchDepth / 2);
+            porchRoof.castShadow = true;
+            station.add(porchRoof);
+            for (let i = -2; i <= 2; i++) {
+                if (i === 0) continue; 
+                const post = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, buildingHeight, 8), darkWoodMaterial);
+                post.position.set(i * (buildingWidth / 4), buildingHeight / 2, buildingDepth / 2 + porchDepth - 1);
+                post.castShadow = true;
+                station.add(post);
+                colliders.push(post);
+            }
+            const counter = new THREE.Mesh(new THREE.BoxGeometry(20, 3.5, 3), darkWoodMaterial);
+            counter.position.set(0, 3.5/2, -buildingDepth/2 + 5);
             counter.castShadow = true;
             station.add(counter);
             colliders.push(counter);
-
-            // Shelves
-            for(let i = 0; i < 3; i++) {
-                const shelf = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 2), shelfMaterial);
-                shelf.position.set(12, 4, -8 + i * 7);
+            for(let i = 0; i < 4; i++) {
+                const shelf = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 2), darkWoodMaterial);
+                shelf.position.set(-buildingWidth/2 + 8, 4, -buildingDepth/2 + 10 + i * 5);
                 shelf.castShadow = true;
                 station.add(shelf);
                 colliders.push(shelf);
             }
-
-            // Interior Light
-            interiorLight = new THREE.PointLight(0xffeeaa, 300, 50, 2);
-            interiorLight.position.y = 12;
-            interiorLight.castShadow = true;
-            station.add(interiorLight);
-
-            // --- Add a chessboard to the ceiling ---
             function createChessboard() {
                 const boardGroup = new THREE.Group();
                 const tileSize = 0.8;
                 const boardSize = 8 * tileSize;
-
-                const darkSquareMaterial = new THREE.MeshStandardMaterial({ color: 0x402218 }); // Dark wood
-                const lightSquareMaterial = new THREE.MeshStandardMaterial({ color: 0xE8DAB2 }); // Light wood
-
+                const darkSquareMaterial = new THREE.MeshStandardMaterial({ color: 0x402218 }); 
+                const lightSquareMaterial = new THREE.MeshStandardMaterial({ color: 0xE8DAB2 });
                 for (let i = 0; i < 8; i++) {
                     for (let j = 0; j < 8; j++) {
                         const isLight = (i + j) % 2 !== 0;
                         const tileMaterial = isLight ? lightSquareMaterial : darkSquareMaterial;
-                        const tile = new THREE.Mesh(
-                            new THREE.PlaneGeometry(tileSize, tileSize),
-                            tileMaterial
-                        );
-                        tile.position.set(
-                            i * tileSize - boardSize / 2 + tileSize / 2,
-                            j * tileSize - boardSize / 2 + tileSize / 2,
-                            0
-                        );
+                        const tile = new THREE.Mesh(new THREE.PlaneGeometry(tileSize, tileSize), tileMaterial);
+                        tile.position.set(i * tileSize - boardSize / 2 + tileSize / 2, j * tileSize - boardSize / 2 + tileSize / 2, 0);
                         boardGroup.add(tile);
                     }
                 }
-
-                // --- Add Chess Pieces ---
-                const whiteMaterial = new THREE.MeshStandardMaterial({ color: 0xedebe6, metalness: 0.2, roughness: 0.5 });
-                const blackMaterial = new THREE.MeshStandardMaterial({ color: 0x301810, metalness: 0.2, roughness: 0.5 });
-
-                function createPiece(type, material) {
-                    const pieceGroup = new THREE.Group();
-                    const baseScale = 0.35;
-                    let base, mid, top, head;
-
-                    switch (type.toLowerCase()) {
-                        case 'p': // Pawn
-                            base = new THREE.Mesh(new THREE.CylinderGeometry(tileSize * baseScale * 0.6, tileSize * baseScale * 0.7, tileSize * 0.1, 12), material);
-                            top = new THREE.Mesh(new THREE.SphereGeometry(tileSize * baseScale * 0.5, 12, 12), material);
-                            top.position.y = tileSize * 0.12;
-                            pieceGroup.add(base, top);
-                            break;
-                        case 'r': // Rook
-                            base = new THREE.Mesh(new THREE.CylinderGeometry(tileSize * baseScale * 0.7, tileSize * baseScale * 0.7, tileSize * 0.4, 12), material);
-                            top = new THREE.Mesh(new THREE.CylinderGeometry(tileSize * baseScale * 0.8, tileSize * baseScale * 0.8, tileSize * 0.15, 4), material);
-                            top.position.y = tileSize * 0.2;
-                            pieceGroup.add(base, top);
-                            break;
-                        case 'n': // Knight (simplified)
-                            base = new THREE.Mesh(new THREE.CylinderGeometry(tileSize * baseScale * 0.6, tileSize * baseScale * 0.7, tileSize * 0.3, 12), material);
-                            head = new THREE.Mesh(new THREE.BoxGeometry(tileSize * 0.4, tileSize * 0.2, tileSize * 0.15), material);
-                            head.position.set(tileSize * 0.1, tileSize * 0.25, 0);
-                            head.rotation.z = Math.PI / 8;
-                            pieceGroup.add(base, head);
-                            break;
-                        case 'b': // Bishop
-                            base = new THREE.Mesh(new THREE.CylinderGeometry(tileSize * baseScale * 0.6, tileSize * baseScale * 0.7, tileSize * 0.4, 12), material);
-                            top = new THREE.Mesh(new THREE.ConeGeometry(tileSize * baseScale * 0.6, tileSize * 0.2, 12), material);
-                            top.position.y = tileSize * 0.3;
-                            pieceGroup.add(base, top);
-                            break;
-                        case 'q': // Queen
-                            base = new THREE.Mesh(new THREE.CylinderGeometry(tileSize * baseScale * 0.6, tileSize * baseScale * 0.7, tileSize * 0.5, 12), material);
-                            top = new THREE.Mesh(new THREE.SphereGeometry(tileSize * baseScale * 0.4, 12, 12), material);
-                            top.position.y = tileSize * 0.3;
-                            pieceGroup.add(base, top);
-                            break;
-                        case 'k': // King
-                            base = new THREE.Mesh(new THREE.CylinderGeometry(tileSize * baseScale * 0.6, tileSize * baseScale * 0.7, tileSize * 0.6, 12), material);
-                            const crossBar1 = new THREE.Mesh(new THREE.BoxGeometry(tileSize * 0.05, tileSize * 0.2, tileSize * 0.05), material);
-                            crossBar1.position.y = tileSize * 0.4;
-                            const crossBar2 = new THREE.Mesh(new THREE.BoxGeometry(tileSize * 0.2, tileSize * 0.05, tileSize * 0.05), material);
-                            crossBar2.position.y = tileSize * 0.4;
-                            pieceGroup.add(base, crossBar1, crossBar2);
-                            break;
-                    }
-                     pieceGroup.traverse(child => { if (child.isMesh) child.castShadow = true; });
-                    return pieceGroup;
-                }
-
-                const initialLayout = [
-                    ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
-                    ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
-                    ['', '', '', '', '', '', '', ''],
-                    ['', '', '', '', '', '', '', ''],
-                    ['', '', '', '', '', '', '', ''],
-                    ['', '', '', '', '', '', '', ''],
-                    ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
-                    ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
-                ];
-
-                // Queen's Pawn moves d2 -> d4
-                initialLayout[4][3] = 'P';
-                initialLayout[6][3] = '';
-
-                for (let row = 0; row < 8; row++) {
-                    for (let col = 0; col < 8; col++) {
-                        const pieceType = initialLayout[row][col];
-                        if (!pieceType) continue;
-
-                        const isWhite = pieceType === pieceType.toUpperCase();
-                        const material = isWhite ? whiteMaterial : blackMaterial;
-                        const piece = createPiece(pieceType, material);
-                        
-                        piece.position.set(
-                            col * tileSize - boardSize / 2 + tileSize / 2,
-                            (7 - row) * tileSize - boardSize / 2 + tileSize / 2,
-                            0.1 // Place on top of the board
-                        );
-                        boardGroup.add(piece);
-                    }
-                }
-
-                // Position the board on the ceiling in the front-left corner
-                boardGroup.position.set(-buildingWidth/2 + boardSize/2 + 2, buildingHeight - 0.5, buildingDepth/2 - boardSize/2 - 2);
-                boardGroup.rotation.x = Math.PI / 2; // Attach to ceiling
+                boardGroup.position.set(0, buildingHeight - 0.3, 0);
+                boardGroup.rotation.x = Math.PI / 2;
                 station.add(boardGroup);
             }
             createChessboard();
-
-
-            // --- Exterior elements ---
-            const pumpRoof = new THREE.Mesh(new THREE.BoxGeometry(20, 1, 25), roofMaterial);
-            pumpRoof.position.set(-30, 10, 0);
-            pumpRoof.castShadow = true;
-            station.add(pumpRoof);
-
-            const pumpMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.2, roughness: 0.6 });
-            const pump1 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), pumpMaterial);
-            pump1.position.set(-30, 2.5, -5);
-            pump1.castShadow = true;
-            station.add(pump1);
-            colliders.push(pump1);
-            const pump2 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), pumpMaterial);
-            pump2.position.set(-30, 2.5, 5);
-            pump2.castShadow = true;
-            station.add(pump2);
-            colliders.push(pump2);
-
-            const lightColor = 0xffe0ac;
-            const pumpLight1 = new THREE.PointLight(lightColor, 250, 40, 2);
-            pumpLight1.position.set(-30, 9, -5);
-            pumpLight1.castShadow = true;
-            station.add(pumpLight1);
-
-            const pumpLight2 = new THREE.PointLight(lightColor, 250, 40, 2);
-            pumpLight2.position.set(-30, 9, 5);
-            pumpLight2.castShadow = true;
-            station.add(pumpLight2);
-
-            const signPole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 25, 8), pumpMaterial);
-            signPole.position.set(0, 12.5, -25);
-            signPole.castShadow = true;
-            station.add(signPole);
-            const signBoard = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 1), buildingMaterial);
-            signBoard.position.set(0, 26, -25);
-            signBoard.castShadow = true;
-            signBoard.receiveShadow = true;
-            station.add(signBoard);
-
-            const fontLoader = new FontLoader();
-            fontLoader.load('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/fonts/helvetiker_bold.typeface.json', (font) => {
-                const textGeometry = new TextGeometry('GAS', { font: font, size: 3, depth: 0.5, curveSegments: 12 });
-                textGeometry.center();
-                const neonMaterial = new THREE.MeshBasicMaterial({ color: 0xff4444 });
-                neonSign = new THREE.Mesh(textGeometry, neonMaterial);
-                neonSign.position.z = 0.6;
-                signBoard.add(neonSign);
-                neonLight = new THREE.PointLight(0xff4444, 500, 30, 2);
-                neonLight.position.z = 2;
-                neonSign.add(neonLight);
-            });
-
-            // Update collider world positions
+            const neonMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            const neonRadius = 0.1;
+            const outlinePoints = [
+                new THREE.Vector3(-buildingWidth/2, buildingHeight, buildingDepth/2 + 1), new THREE.Vector3(buildingWidth/2, buildingHeight, buildingDepth/2 + 1),
+                new THREE.Vector3(buildingWidth/2, buildingHeight, buildingDepth/2 + 1), new THREE.Vector3(buildingWidth/2, buildingHeight + facadeSteps[0].h, buildingDepth/2 + 1),
+                new THREE.Vector3(20, 14, 13.5), new THREE.Vector3(17.5, 14, 13.5),
+                new THREE.Vector3(17.5, 14, 13.5), new THREE.Vector3(17.5, 17, 13.5),
+                new THREE.Vector3(17.5, 17, 13.5), new THREE.Vector3(12.5, 17, 13.5),
+                new THREE.Vector3(12.5, 17, 13.5), new THREE.Vector3(12.5, 19, 13.5),
+                new THREE.Vector3(12.5, 19, 13.5), new THREE.Vector3(-12.5, 19, 13.5),
+                new THREE.Vector3(-12.5, 19, 13.5), new THREE.Vector3(-12.5, 17, 13.5),
+                new THREE.Vector3(-12.5, 17, 13.5), new THREE.Vector3(-17.5, 17, 13.5),
+                new THREE.Vector3(-17.5, 17, 13.5), new THREE.Vector3(-17.5, 14, 13.5),
+                new THREE.Vector3(-17.5, 14, 13.5), new THREE.Vector3(-20, 14, 13.5),
+                new THREE.Vector3(-buildingWidth/2, buildingHeight + facadeSteps[0].h, buildingDepth/2 + 1), new THREE.Vector3(-buildingWidth/2, buildingHeight, buildingDepth/2 + 1),
+            ];
+            for (let i = 0; i < outlinePoints.length; i += 2) {
+                const start = outlinePoints[i];
+                const end = outlinePoints[i+1];
+                const path = new THREE.LineCurve3(start, end);
+                const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 1, neonRadius, 8, false), neonMaterial);
+                station.add(tube);
+                const neonLight = new THREE.PointLight(0xff0000, 150, 50, 2);
+                neonLight.position.copy(start.clone().lerp(end, 0.5));
+                station.add(neonLight);
+                neonLights.push(neonLight);
+            }
             colliders.forEach(c => {
                 c.updateWorldMatrix(true, false);
                 c.geometry.computeBoundingBox();
             });
-            
-            return [pumpLight1, pumpLight2];
         }
-        const gasStationLights = createGasStation();
-
-        // --- Add third garbage can ---
+        
         function createGarbageCanThree() {
-            const cat = new THREE.Group();
+             cat = new THREE.Group();
             scene.add(cat);
-
-            // Materials
             const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
-            const accentMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 }); // Lighter grey for paws
-            const innerEarMaterial = new THREE.MeshStandardMaterial({ color: 0xdb7093, roughness: 0.9 }); // Dusty pink
-            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffc940 }); // Golden-yellow iris
-            const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Black pupils
-
-            // Main Body
+            const accentMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+            const innerEarMaterial = new THREE.MeshStandardMaterial({ color: 0xdb7093, roughness: 0.9 });
+            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffc940 });
+            const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
             const bodyMesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 20, 16), bodyMaterial);
-            bodyMesh.scale.set(1, 1.2, 0.9); // Make it tall and slightly narrow
-            bodyMesh.position.y = (1.4 * 1.2) / 2; // Sit on the ground
+            bodyMesh.scale.set(1, 1.2, 0.9);
+            bodyMesh.position.y = (1.4 * 1.2) / 2;
             bodyMesh.castShadow = true;
             cat.add(bodyMesh);
-
-            // Head
-            garbageCanThreeHead = new THREE.Group();
-            cat.add(garbageCanThreeHead);
-            garbageCanThreeHead.position.y = (1.4 * 1.2) + 0.5; // On top of the body
-            garbageCanThreeHead.position.z = 0.2;
-
+            catHead = new THREE.Group();
+            cat.add(catHead);
+            catHead.position.y = (1.4 * 1.2) + 0.5;
+            catHead.position.z = 0.2;
             const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.8, 20, 16), bodyMaterial);
             headMesh.castShadow = true;
-            garbageCanThreeHead.add(headMesh);
-
-            // Eyes
+            catHead.add(headMesh);
             const eyeRadius = 0.15;
             const leftEye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 12, 8), eyeMaterial);
             leftEye.position.set(0.3, 0.15, 0.7);
-            garbageCanThreeHead.add(leftEye);
-
+            leftEye.name = "leftEye";
+            catHead.add(leftEye);
             const rightEye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 12, 8), eyeMaterial);
             rightEye.position.set(-0.3, 0.15, 0.7);
-            garbageCanThreeHead.add(rightEye);
-
-            // Pupils
+            rightEye.name = "rightEye";
+            catHead.add(rightEye);
             const pupil = new THREE.Mesh(new THREE.CircleGeometry(eyeRadius * 0.6, 12), pupilMaterial);
             pupil.position.z = 0.7 + eyeRadius + 0.01;
             const leftPupil = pupil.clone();
@@ -474,138 +393,146 @@
             const rightPupil = pupil.clone();
             rightPupil.position.x = -0.3;
             rightPupil.position.y = 0.15;
-            garbageCanThreeHead.add(leftPupil, rightPupil);
-
-            // Ears - now 100% larger
+            catHead.add(leftPupil, rightPupil);
             const earScale = 2.8;
             const earOuter = new THREE.Mesh(new THREE.ConeGeometry(0.25 * earScale, 0.5 * earScale, 8), bodyMaterial);
             const earInner = new THREE.Mesh(new THREE.ConeGeometry(0.18 * earScale, 0.4 * earScale, 8), innerEarMaterial);
-            earInner.position.z = 0.05; // Slightly forward
+            earInner.position.z = 0.05;
             const leftEar = new THREE.Group().add(earOuter.clone(), earInner.clone());
             leftEar.position.set(0.4, 0.5, 0);
             leftEar.rotation.set(0, 0, -Math.PI / 10);
             const rightEar = new THREE.Group().add(earOuter.clone(), earInner.clone());
             rightEar.position.set(-0.4, 0.5, 0);
             rightEar.rotation.z = Math.PI / 10;
-            garbageCanThreeHead.add(leftEar, rightEar);
-
-            // Front Legs - now 30% smaller and closer together
+            catHead.add(leftEar, rightEar);
             const leg = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), bodyMaterial);
             leg.scale.set(0.8 * 0.7, 1.8 * 0.7, 0.8 * 0.7);
-            leg.position.y = 0.6; // Adjusted for new scale
+            leg.position.y = 0.6;
             leg.position.z = 1;
             leg.castShadow = true;
             const leftLeg = leg.clone();
-            leftLeg.position.x = 0.45; // Closer together
+            leftLeg.position.x = 0.45;
             const rightLeg = leg.clone();
-            rightLeg.position.x = -0.45; // Closer together
+            rightLeg.position.x = -0.45;
             cat.add(leftLeg, rightLeg);
-
-            // Paws - now 30% smaller and closer together
             const paw = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), accentMaterial);
             paw.scale.set(1.1 * 0.7, 0.7 * 0.7, 1 * 0.7);
-            paw.position.y = 0.2; // Adjusted for new scale
+            paw.position.y = 0.2;
             paw.position.z = 1.2;
             paw.castShadow = true;
             const leftPaw = paw.clone();
-            leftPaw.position.x = 0.45; // Closer together
+            leftPaw.position.x = 0.45;
             const rightPaw = paw.clone();
-            rightPaw.position.x = -0.45; // Closer together
+            rightPaw.position.x = -0.45;
             cat.add(leftPaw, rightPaw);
-
-            // Tail - Reworked to be visible and on the ground
             const tailCurve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(0, 0.8, -0.6),    // Start high on the back
-                new THREE.Vector3(-0.8, 0.4, -1.0), // Curve out and down to the side
-                new THREE.Vector3(-1.5, 0.15, -0.4),// Touch down on the ground
-                new THREE.Vector3(-1.8, 0.1, 0.3),  // Tip rests on the ground away from the body
+                new THREE.Vector3(0, 0.8, -0.6), new THREE.Vector3(-0.8, 0.4, -1.0),
+                new THREE.Vector3(-1.5, 0.15, -0.4), new THREE.Vector3(-1.8, 0.1, 0.3),
             ]);
             const tailGeometry = new THREE.TubeGeometry(tailCurve, 32, 0.2, 8, false);
             const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
             tail.castShadow = true;
             cat.add(tail);
-
-            // Final position and rotation - moved between the trash cans
-            cat.position.set(150, 0, -518);
-            // Rotated so tail is towards the wall and legs face out
+            cat.position.set(150, 0, -515);
             cat.rotation.y = Math.PI;
         }
-        createGarbageCanThree();
 
-        // --- Add Trashcans for the cat to hide behind ---
-        function createTrashCans() {
-            const canMaterial = new THREE.MeshStandardMaterial({
-                color: 0x444444,
-                metalness: 0.7,
-                roughness: 0.5
+        function createVoidPortalAndTentacles() {
+            const portalGeometry = new THREE.CircleGeometry(5, 64);
+            const portalMaterial = new THREE.ShaderMaterial({
+                uniforms: { u_time: { value: 0.0 }, },
+                vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+                fragmentShader: `
+                    uniform float u_time; varying vec2 vUv;
+                    float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123); }
+                    float noise(vec2 st) {
+                        vec2 i = floor(st); vec2 f = fract(st);
+                        float a = random(i); float b = random(i + vec2(1.0, 0.0));
+                        float c = random(i + vec2(0.0, 1.0)); float d = random(i + vec2(1.0, 1.0));
+                        vec2 u = f * f * (3.0 - 2.0 * f);
+                        return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.y * u.x;
+                    }
+                    void main() {
+                        vec2 p = vUv - 0.5; float r = length(p); float angle = atan(p.y, p.x);
+                        float swirl = noise(vec2(r * 4.0 - u_time * 0.3, angle * 2.0));
+                        vec3 color = vec3(swirl * 0.2, 0.0, swirl * 0.4);
+                        float edge = 1.0 - smoothstep(0.4, 0.5, r);
+                        gl_FragColor = vec4(color, edge);
+                    }`,
+                transparent: true, side: THREE.DoubleSide
             });
+            voidPortal = new THREE.Mesh(portalGeometry, portalMaterial);
+            voidPortal.position.set(150, 0.1, -515);
+            voidPortal.rotation.x = -Math.PI / 2;
+            voidPortal.scale.set(0, 0, 0);
+            scene.add(voidPortal);
+            voidLight = new THREE.PointLight(0x440044, 0, 30, 2);
+            voidLight.position.set(150, 2, -515);
+            scene.add(voidLight);
+            const tentacleMaterial = new THREE.MeshStandardMaterial({ color: 0x100010, roughness: 0.8 });
+            for (let i = 0; i < 5; i++) {
+                const points = [];
+                for (let j = 0; j < 10; j++) {
+                    points.push(new THREE.Vector3(0, j * 1.5, 0));
+                }
+                const curve = new THREE.CatmullRomCurve3(points);
+                const geometry = new THREE.TubeGeometry(curve, 20, 0.3, 8, false);
+                const tentacle = new THREE.Mesh(geometry, tentacleMaterial);
+                const angle = (i / 5) * Math.PI * 2;
+                const radius = Math.random() * 2 + 1.5;
+                tentacle.position.set(voidPortal.position.x + Math.cos(angle) * radius, -10, voidPortal.position.z + Math.sin(angle) * radius);
+                tentacle.userData.angle = angle;
+                tentacle.userData.radius = radius;
+                tentacle.visible = false;
+                scene.add(tentacle);
+                tentacles.push(tentacle);
+            }
+        }
 
+        function createTrashCans() {
+            const canMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.7, roughness: 0.5 });
             const createCan = (x, z, rotation) => {
-                const canGroup = new THREE.Group();
-                scene.add(canGroup);
-                canGroup.position.set(x, 0, z);
-                canGroup.rotation.y = rotation;
-
-                // Main body - scaled up by 1.8x
-                const body = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.8 * 1.6, 0.9 * 1.8, 2.5 * 1.8, 12),
-                    canMaterial
-                );
-                body.position.y = 1.25 * 1.8;
-                body.castShadow = true;
-                body.name = "trashCanBody";
-                canGroup.add(body);
-                colliders.push(body); // Add main body to colliders
-
-                // Lid - scaled up by 1.8x
-                const lid = new THREE.Mesh(
-                    new THREE.CylinderGeometry(0.95 * 1.8, 0.95 * 1.8, 0.2 * 1.8, 12),
-                    canMaterial
-                );
-                lid.position.y = (2.5 + 0.1) * 1.8; // Place on top
-                lid.castShadow = true;
-                // Tilt the lid slightly
-                lid.rotation.x = Math.PI / 16;
-                canGroup.add(lid);
+                const canGroup = new THREE.Group(); scene.add(canGroup);
+                canGroup.position.set(x, 0, z); canGroup.rotation.y = rotation;
+                const body = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 4, 12), canMaterial);
+                body.position.y = 2; body.castShadow = true; canGroup.add(body); colliders.push(body);
+                const lid = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.3, 12), canMaterial);
+                lid.position.y = 4.15; lid.castShadow = true; lid.rotation.x = Math.PI / 16; canGroup.add(lid);
             };
-
-            // Place two cans for the cat to peer between, spaced farther apart due to size
-            createCan(147, -516, Math.PI / 8);
-            createCan(153, -516.5, -Math.PI / 12);
+            createCan(147, -515, Math.PI / 8); createCan(153, -515, -Math.PI / 12);
         }
-        createTrashCans();
-
-
-        // Add Cacti & Shrubs
-        const cactusMaterial = new THREE.MeshStandardMaterial({ color: 0x2e602e });
-        const shrubMaterial = new THREE.MeshStandardMaterial({ color: 0x1a3a1a });
-        function createCactus(x, z) {
-            const cactus = new THREE.Group();
-            const mainHeight = Math.random() * 2.5 + 1;
-            const mainBody = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, mainHeight, 8), cactusMaterial);
-            mainBody.position.y = mainHeight / 2;
-            mainBody.castShadow = true;
-            cactus.add(mainBody);
-            const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 8), cactusMaterial);
-            arm.position.set(0.3, mainHeight * 0.7, 0);
-            arm.rotation.z = -Math.PI / 2;
-            arm.castShadow = true;
-            cactus.add(arm);
-            cactus.position.set(x, 0, z);
-            scene.add(cactus);
-        }
-        function createShrub(x, z) {
-            const shrub = new THREE.Mesh(new THREE.SphereGeometry(Math.random() * 0.8 + 0.4, 8, 6), shrubMaterial);
-            shrub.position.set(x, 0.5, z);
-            shrub.castShadow = true;
-            scene.add(shrub);
-        }
-        for (let i = 0; i < 200; i++) {
-            const x = (Math.random() - 0.5) * 500;
-            const z = (Math.random() - 0.5) * 500;
-            if (x*x + z*z > 100) { 
-                if (Math.random() > 0.5) createCactus(x, z);
-                else createShrub(x, z);
+        
+        function createVegetation() {
+            const cactusMaterial = new THREE.MeshStandardMaterial({ color: 0x2e602e });
+            const shrubMaterial = new THREE.MeshStandardMaterial({ color: 0x1a3a1a });
+            function createCactus(x, z) {
+                const cactus = new THREE.Group();
+                const mainHeight = Math.random() * 2.5 + 1;
+                const mainBody = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, mainHeight, 8), cactusMaterial);
+                mainBody.position.y = mainHeight / 2;
+                mainBody.castShadow = true;
+                cactus.add(mainBody);
+                const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 8), cactusMaterial);
+                arm.position.set(0.3, mainHeight * 0.7, 0);
+                arm.rotation.z = -Math.PI / 2;
+                arm.castShadow = true;
+                cactus.add(arm);
+                cactus.position.set(x, 0, z);
+                scene.add(cactus);
+            }
+            function createShrub(x, z) {
+                const shrub = new THREE.Mesh(new THREE.SphereGeometry(Math.random() * 0.8 + 0.4, 8, 6), shrubMaterial);
+                shrub.position.set(x, 0.5, z);
+                shrub.castShadow = true;
+                scene.add(shrub);
+            }
+            for (let i = 0; i < 200; i++) {
+                const x = (Math.random() - 0.5) * 500;
+                const z = (Math.random() - 0.5) * 500;
+                if (x*x + z*z > 100) { 
+                    if (Math.random() > 0.5) createCactus(x, z);
+                    else createShrub(x, z);
+                }
             }
         }
         
@@ -623,87 +550,41 @@
         const mouth = new THREE.Mesh(new THREE.PlaneGeometry(2, 3.5), featureMaterial);
         mouth.position.set(0, -2.5, 0.1);
         face.add(mouth);
-        face.position.set(0, 15, -800);
-        face.visible = false; // Start hidden
+        face.visible = false;
         scene.add(face);
 
         // 5. Player Controls & Collision
         const controls = new PointerLockControls(camera, document.body);
         document.body.addEventListener('click', () => { controls.lock(); initAudio(); });
-
-        const keys = {};
-        const movementSpeed = 50;
-        const velocity = new THREE.Vector3();
-        const direction = new THREE.Vector3();
-
         document.addEventListener('keydown', (event) => { keys[event.code] = true; });
         document.addEventListener('keyup', (event) => { keys[event.code] = false; });
-
         function checkCollision(playerNextPos) {
-            // Much shorter collision box to fit through door
-            const playerBox = new THREE.Box3().setFromCenterAndSize(playerNextPos, new THREE.Vector3(0.8, 2, 0.8));
-            
+            const playerBox = new THREE.Box3().setFromCenterAndSize(playerNextPos, new THREE.Vector3(1, 5, 1));
             for (const collider of colliders) {
                 const colliderBox = new THREE.Box3().setFromObject(collider);
                 if (playerBox.intersectsBox(colliderBox)) {
-                    // Debug: log collision details
-                    console.log('[COLLISION] Blocked by:', collider.name || 'unknown object', {
-                        playerPos: playerNextPos,
-                        colliderPos: collider.position,
-                        playerBox: playerBox,
-                        colliderBox: colliderBox
-                    });
                     return true;
                 }
             }
             return false;
         }
-
-        // Temporary debug: Press 'C' to toggle collision visualization
-        let showColliders = false;
-        document.addEventListener('keydown', (event) => {
-            if (event.code === 'KeyC') {
-                showColliders = !showColliders;
-                colliders.forEach(collider => {
-                    if (showColliders) {
-                        collider.material.wireframe = true;
-                        collider.material.color.setHex(0xff0000);
-                    } else {
-                        collider.material.wireframe = false;
-                        collider.material.color.setHex(0xdddddd);
-                    }
-                });
-                console.log('Collision visualization:', showColliders ? 'ON' : 'OFF');
-            }
-        });
-
         function updateMovement(delta) {
             velocity.set(0, 0, 0);
-            
             controls.getDirection(direction);
             direction.y = 0;
             direction.normalize();
-
             const right = new THREE.Vector3(-direction.z, 0, direction.x);
-
             if (keys['KeyW']) velocity.add(direction);
             if (keys['KeyS']) velocity.sub(direction);
             if (keys['KeyD']) velocity.add(right);
             if (keys['KeyA']) velocity.sub(right);
-
             if (velocity.length() > 0) {
                 velocity.normalize().multiplyScalar(movementSpeed * delta);
-                
-                // --- NEW: Collision Detection Logic ---
                 const player = controls.getObject();
-                
-                // Check X-axis movement
                 let nextPosX = new THREE.Vector3(player.position.x + velocity.x, player.position.y, player.position.z);
                 if (!checkCollision(nextPosX)) {
                     player.position.x += velocity.x;
                 }
-
-                // Check Z-axis movement
                 let nextPosZ = new THREE.Vector3(player.position.x, player.position.y, player.position.z + velocity.z);
                 if (!checkCollision(nextPosZ)) {
                     player.position.z += velocity.z;
@@ -711,14 +592,15 @@
             }
         }
 
-        const clock = new THREE.Clock();
-        const cameraDirection = new THREE.Vector3();
-        // const faceDirection = new THREE.Vector3(); // No longer needed for this behavior
-
-        // --- NEW: Ghost state management ---
-        let ghostState = 'hidden'; // 'hidden' or 'visible'
-        let ghostTimer = 0;
-        let nextGhostAppearance = 15.0; // Time in seconds for the first appearance
+        // --- Initial scene creation ---
+        createLightingAndWorld();
+        createStars();
+        createMoon();
+        createGasStation();
+        createGarbageCanThree();
+        createVoidPortalAndTentacles();
+        createTrashCans();
+        createVegetation();
 
         // 6. Game Loop
         function animate() {
@@ -730,41 +612,161 @@
                 updateMovement(delta);
             }
 
-            // Make the object's head follow the player
-            if (garbageCanThreeHead) {
-                garbageCanThreeHead.lookAt(camera.position);
+            const distanceToCat = cat ? camera.position.distanceTo(cat.position) : Infinity;
+
+            switch(catState) {
+                case 'idle':
+                    if (catHead) catHead.lookAt(camera.position);
+                    if (distanceToCat < 25) {
+                        playMeow();
+                        catState = 'approaching';
+                    }
+                    break;
+                case 'approaching':
+                    if (catHead) catHead.lookAt(camera.position);
+                    if (distanceToCat > 10) {
+                        const moveDirection = new THREE.Vector3().subVectors(camera.position, cat.position).normalize();
+                        cat.position.x += moveDirection.x * 1.5 * delta;
+                        cat.position.z += moveDirection.z * 1.5 * delta;
+                        voidPortal.position.x = cat.position.x;
+                        voidPortal.position.z = cat.position.z;
+                        voidLight.position.x = cat.position.x;
+                        voidLight.position.z = cat.position.z;
+                        tentacles.forEach(t => {
+                            t.position.x = cat.position.x + Math.cos(t.userData.angle) * t.userData.radius;
+                            t.position.z = cat.position.z + Math.sin(t.userData.angle) * t.userData.radius;
+                        });
+                    } else {
+                        catState = 'staring';
+                        catStateTimer = 2.0;
+                    }
+                    break;
+                case 'staring':
+                    if (catHead) catHead.lookAt(camera.position);
+                    catStateTimer -= delta;
+                    if (catStateTimer <= 0) {
+                        catState = 'horrifying';
+                        catStateTimer = 3.0;
+                        const redEyeMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2 });
+                        cat.getObjectByName("leftEye").material = redEyeMaterial;
+                        cat.getObjectByName("rightEye").material = redEyeMaterial;
+                        if (rumbleNode) rumbleNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 1.0);
+                        screenShake.duration = 8.0;
+                        screenShake.intensity = 0.05;
+                    }
+                    break;
+                case 'horrifying':
+                    if (catHead.rotation.y < Math.PI * 2) {
+                        catHead.rotation.y += (Math.PI * 2 / 3.0) * delta;
+                    }
+                    catStateTimer -= delta;
+                    if (catStateTimer <= 0) {
+                        catState = 'descending';
+                    }
+                    break;
+                case 'descending':
+                    if (catHead) catHead.lookAt(camera.position);
+                    voidPortal.scale.lerp(new THREE.Vector3(1, 1, 1), 0.05);
+                    voidLight.intensity = Math.min(voidLight.intensity + 2 * delta, 5);
+                    if (voidPortal.material.uniforms) voidPortal.material.uniforms.u_time.value = time;
+                    tentacles.forEach(t => {
+                        t.visible = true;
+                        t.position.y = Math.min(t.position.y + 3 * delta, 0);
+                        const points = t.geometry.parameters.path.points;
+                        for(let i = 0; i < points.length; i++) {
+                            const angle = time * 2 + i * 0.5;
+                            points[i].x = Math.sin(angle) * 0.5;
+                            points[i].z = Math.cos(angle) * 0.5;
+                        }
+                        t.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 20, 0.3, 8, false);
+                    });
+                    if (voidPortal.scale.x > 0.9) {
+                        cat.position.y -= 1.0 * delta;
+                    }
+                    if (cat.position.y < -5) {
+                        catState = 'descended';
+                    }
+                    break;
+                case 'descended':
+                    voidPortal.scale.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+                    voidLight.intensity = Math.max(voidLight.intensity - 4 * delta, 0);
+                    if (rumbleNode) rumbleNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 1.0);
+                    tentacles.forEach(t => { t.position.y -= 5 * delta; });
+                    if (voidPortal.scale.x < 0.01) {
+                        scene.remove(cat);
+                        scene.remove(voidPortal);
+                        scene.remove(voidLight);
+                        tentacles.forEach(t => scene.remove(t));
+                        cat = null;
+                        catState = 'quiet_respite';
+                        catStateTimer = 5.0; // 5 second timer
+                    }
+                    break;
+                case 'quiet_respite':
+                    catStateTimer -= delta;
+                    if (catStateTimer <= 0) {
+                        catMoon = catHead.clone();
+                        catMoon.scale.setScalar(moon.geometry.parameters.radius / 0.8); // Match original moon size
+                        catMoon.position.copy(moon.position);
+                        catMoon.traverse(child => {
+                            if (child.isMesh) {
+                                child.material = child.material.clone();
+                                child.material.transparent = true;
+                                child.material.opacity = 0;
+                            }
+                        });
+                        scene.add(catMoon);
+                        catMoonLight = new THREE.PointLight(0xff0000, 0, 2000, 1);
+                        catMoonLight.position.copy(moon.position);
+                        scene.add(catMoonLight);
+                        catState = 'moon_swap';
+                    }
+                    break;
+                case 'moon_swap':
+                    if (moon) {
+                        moon.material.opacity -= 0.2 * delta;
+                        moonLight.intensity -= 0.12 * delta;
+                        if (moon.material.opacity <= 0) {
+                            scene.remove(moon);
+                            moon = null;
+                        }
+                    }
+                    if (catMoon) {
+                        catMoon.traverse(child => {
+                            if (child.isMesh) {
+                                child.material.opacity = Math.min(child.material.opacity + 0.2 * delta, 1);
+                            }
+                        });
+                        catMoonLight.intensity = Math.min(catMoonLight.intensity + 0.4 * delta, 2);
+                        if (catMoon.children[0].material.opacity >= 1) {
+                            catState = 'watching';
+                            document.getElementById('warning').innerText = "IT IS WATCHING";
+                        }
+                    }
+                    break;
+                case 'watching':
+                    if (catMoon) catMoon.lookAt(camera.position);
+                    break;
             }
 
-            gasStationLights.forEach(light => {
-                const flicker = Math.sin(time * 15 + Math.random()) * 0.15 + 0.85;
-                const wave = Math.sin(time * 0.5 + light.position.z) * 50 + 200;
-                light.intensity = flicker * wave;
-            });
-
-            if (interiorLight) {
-                interiorLight.intensity = Math.sin(time * 3 + Math.random()) > 0 ? 300 : 280;
+            if (screenShake.duration > 0) {
+                camera.position.x += (Math.random() - 0.5) * screenShake.intensity;
+                camera.position.y += (Math.random() - 0.5) * screenShake.intensity;
+                screenShake.duration -= delta;
+            } else {
+                screenShake.intensity = 0;
             }
 
-            if (neonSign) {
-                const flashPattern = Math.sin(time * 7) > 0.5 || Math.sin(time * 0.8) > 0.9;
-                neonSign.visible = flashPattern;
-                neonLight.visible = flashPattern;
-            }
-
-            // --- GHOST JUMP SCARE LOGIC ---
+            neonLights.forEach(light => { if (Math.random() > 0.98) { light.intensity = light.intensity > 0 ? 0 : 150; } });
+            
             if (ghostState === 'hidden') {
-                // Only appear if the game is active and it's time
                 if (controls.isLocked && time > nextGhostAppearance) {
                     ghostState = 'visible';
-                    // Visible for a short, startling amount of time
                     ghostTimer = Math.random() * 1.0 + 0.3;
-
-                    // Position ghost behind the player so they have to turn around
                     camera.getWorldDirection(cameraDirection);
-                    const distanceBehind = Math.random() * 15 + 20; // 20-35 units away
+                    const distanceBehind = Math.random() * 15 + 20;
                     const appearPosition = camera.position.clone().sub(cameraDirection.multiplyScalar(distanceBehind));
-                    appearPosition.y = camera.position.y + (Math.random() - 0.5) * 4; // Appear around player height
-
+                    appearPosition.y = camera.position.y + (Math.random() - 0.5) * 4;
                     face.position.copy(appearPosition);
                     face.lookAt(camera.position);
                     face.visible = true;
@@ -774,10 +776,8 @@
                 if (ghostTimer <= 0) {
                     ghostState = 'hidden';
                     face.visible = false;
-                    // Schedule the next startling appearance
-                    nextGhostAppearance = time + Math.random() * 20 + 10; // 10-30 seconds
+                    nextGhostAppearance = time + Math.random() * 20 + 10;
                 } else {
-                    // Stare at the player while visible, but don't move
                     face.lookAt(camera.position);
                 }
             }
