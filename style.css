@@ -20,4 +20,15 @@ canvas { display: block; }
     font-family: monospace;
     font-size: 1.2em;
     pointer-events: none; /* Allows clicks to go through to the game */
+}
+#interaction-prompt {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    font-family: monospace;
+    font-size: 1.2em;
+    pointer-events: none;
+    display: none; /* Hidden by default */
 } 

@@ -6,6 +6,8 @@ export let rumbleNode;
 export let neonLights = [];
 export let flickeringLights = [];
 export let tvVideoElement, tvPosition, videoAudioContext, videoAudioSource, videoGainNode;
+export const interactables = [];
+export const doors = [];
 export let cat, voidPortal, voidLight, catHead, tentacles = [], moon, catMoon, moonLight, catMoonLight;
 export let catState = 'idle'; 
 export let catStateTimer = 0;

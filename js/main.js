@@ -22,7 +22,15 @@ const controls = setupControls(camera);
 // Centralized collider initialization
 state.colliders.forEach(c => {
     c.updateWorldMatrix(true, false);
-    c.geometry.computeBoundingBox();
+    if (c.geometry) { // It's a Mesh
+        c.geometry.computeBoundingBox();
+    } else { // It's a Group, handle children
+        c.traverse((child) => {
+            if (child.isMesh) {
+                child.geometry.computeBoundingBox();
+            }
+        });
+    }
 });
 
 createGameLoop(scene, camera, renderer, controls, face); 

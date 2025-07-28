@@ -21,7 +21,25 @@ export function setupControls(camera) {
             state.setVideoGainNode(gainNode);
         }
     });
-    document.addEventListener('keydown', (event) => { state.keys[event.code] = true; });
+    document.addEventListener('keydown', (event) => {
+        state.keys[event.code] = true;
+        if (event.code === 'KeyE') {
+            let closestInteractable = null;
+            let closestDist = 5;
+            state.interactables.forEach(interactable => {
+                const worldPosition = new THREE.Vector3();
+                interactable.mesh.getWorldPosition(worldPosition);
+                const dist = camera.position.distanceTo(worldPosition);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestInteractable = interactable;
+                }
+            });
+            if (closestInteractable) {
+                closestInteractable.onInteract();
+            }
+        }
+    });
     document.addEventListener('keyup', (event) => { state.keys[event.code] = false; });
     return controls;
 }

@@ -18,6 +18,33 @@ function updateTvVolume(camera) {
     state.videoGainNode.gain.setValueAtTime(volume, state.videoAudioContext.currentTime);
 }
 
+function handleInteractions(camera) {
+    const prompt = document.getElementById('interaction-prompt');
+    let closestInteractable = null;
+    let closestDist = 5; // Increased interaction distance
+
+    state.interactables.forEach(interactable => {
+        const worldPosition = new THREE.Vector3();
+        interactable.mesh.getWorldPosition(worldPosition);
+        const dist = camera.position.distanceTo(worldPosition);
+        if (dist < closestDist) {
+            closestDist = dist;
+            closestInteractable = interactable;
+        }
+    });
+
+    if (closestInteractable) {
+        prompt.innerText = closestInteractable.prompt;
+        prompt.style.display = 'block';
+    } else {
+        prompt.style.display = 'none';
+    }
+}
+
+function updateAnimations(delta) {
+    state.doors.forEach(door => door.update(delta));
+}
+
 export function createGameLoop(scene, camera, renderer, controls, face) {
     function animate() {
         requestAnimationFrame(animate);
@@ -177,10 +204,18 @@ export function createGameLoop(scene, camera, renderer, controls, face) {
         state.neonLights.forEach(light => { if (Math.random() > 0.98) { light.intensity = light.intensity > 0 ? 0 : 150; } });
         state.flickeringLights.forEach(light => {
             if (Math.random() > 0.9) {
-                light.intensity = light.intensity > 0 ? 0 : 2;
+                const isOn = light.intensity > 0;
+                if (light.isSpotLight) { // Porch light
+                    light.intensity = isOn ? 0 : 20;
+                } else { // Fireplace light
+                    light.intensity = isOn ? 0 : 2;
+                }
             }
         });
         
+        handleInteractions(camera);
+        updateAnimations(delta);
+
         if (state.ghostState === 'hidden') {
             if (controls.isLocked && time > state.nextGhostAppearance) {
                 state.setGhostState('visible');
