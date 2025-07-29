@@ -3,9 +3,9 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 
 import { setupScene } from './scene.js';
 import { createLightingAndWorld, createStars, createMoon, createGasStation, createSaloon, createCat, createVoidPortalAndTentacles, createTrashCans, createVegetation, createWaterTower, createTelephonePoles, createEnterableCar, createGasStationSign, createFace } from './actors.js';
-import { setupControls } from './controls.js';
-import { createGameLoop } from './gameLoop.js';
-import { colliders } from './state.js';
+import { Controls } from './controls.js';
+import { GameLoop } from './gameLoop.js';
+import * as state from './state.js';
 
 // --- MAIN INITIALIZATION ---
 // This function runs once the entire page (including all scripts) is loaded.
@@ -20,6 +20,7 @@ window.onload = function() {
     createStars(scene);
     createMoon(scene);
     createGasStation(scene);
+    const saloon = createSaloon(scene);
     createCat(scene);
     createVoidPortalAndTentacles(scene);
     createTrashCans(scene);
@@ -29,8 +30,7 @@ window.onload = function() {
     createTelephonePoles(scene);
     createEnterableCar(scene);
 
-    // --- 3. Setup Player Controls ---
-    const controls = setupControls(camera, renderer.domElement);
+    const controls = new Controls(camera, renderer.domElement);
 
     // --- 4. Asynchronously Load Fonts and Create Dependent Actors ---
     // The FontLoader loads assets in the background. The code inside the callback
@@ -53,7 +53,7 @@ window.onload = function() {
             console.log('All assets loaded, finalizing setup...');
             
             // Compute bounding boxes for all colliders for accurate physics.
-            colliders.forEach(c => {
+            state.colliders.forEach(c => {
                 c.updateWorldMatrix(true, false);
                 if (c.geometry) { // It's a Mesh
                     c.geometry.computeBoundingBox();
@@ -68,7 +68,8 @@ window.onload = function() {
 
             // Start the game's animation loop.
             console.log('Starting game loop.');
-            createGameLoop(scene, camera, renderer, controls, face);
+            const gameLoop = new GameLoop(scene, camera, renderer, controls, face);
+            gameLoop.start();
         },
 
         // --- OnProgress Callback (Optional) ---

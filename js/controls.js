@@ -1,86 +1,128 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import * as state from './state.js';
 import { initAudio } from './audio.js';
-import { keys, interactables, velocity, direction, movementSpeed, colliders } from './state.js';
 
-export function setupControls(camera, domElement) {
-    const controls = new PointerLockControls(camera, domElement);
-    
-    document.body.addEventListener('click', () => { 
-        controls.lock(); 
-        initAudio();
-    });
+export class Controls {
+    constructor(camera, domElement) {
+        this.camera = camera;
+        this.controls = new PointerLockControls(camera, domElement);
 
-    document.addEventListener('keydown', (event) => {
-        keys[event.code] = true;
-        if (event.code === 'KeyE') {
-            handleInteraction(camera);
-        }
-    });
+        domElement.addEventListener('click', () => {
+            this.controls.lock();
+            initAudio();
+            if (state.tvVideoElement && !state.videoAudioContext) {
+                state.tvVideoElement.muted = false;
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaElementSource(state.tvVideoElement);
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 0;
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                state.setVideoAudioContext(audioContext);
+                state.setVideoAudioSource(source);
+                state.setVideoGainNode(gainNode);
+            }
+        });
 
-    document.addEventListener('keyup', (event) => { 
-        keys[event.code] = false; 
-    });
+        document.addEventListener('keydown', (event) => {
+            state.keys[event.code] = true;
+            if (event.code === 'KeyE') {
+                this.handleInteraction();
+            }
+        });
 
-    return controls;
-}
-
-function handleInteraction(camera) {
-    let closestInteractable = null;
-    let closestDist = 5; // Max interaction distance
-
-    interactables.forEach(interactable => {
-        const worldPosition = new THREE.Vector3();
-        interactable.mesh.getWorldPosition(worldPosition);
-        const dist = camera.position.distanceTo(worldPosition);
-        if (dist < closestDist) {
-            closestDist = dist;
-            closestInteractable = interactable;
-        }
-    });
-
-    if (closestInteractable) {
-        closestInteractable.onInteract();
+        document.addEventListener('keyup', (event) => {
+            state.keys[event.code] = false;
+        });
     }
-}
 
-function checkCollision(playerNextPos) {
-    const playerBox = new THREE.Box3().setFromCenterAndSize(playerNextPos, new THREE.Vector3(1, 5, 1));
-    for (const collider of colliders) {
-        const colliderBox = new THREE.Box3().setFromObject(collider);
-        if (playerBox.intersectsBox(colliderBox)) {
-            return true;
+    handleInteraction() {
+        let closestInteractable = null;
+        let closestDist = 5;
+
+        state.interactables.forEach(interactable => {
+            const worldPosition = new THREE.Vector3();
+            interactable.mesh.getWorldPosition(worldPosition);
+            const dist = this.camera.position.distanceTo(worldPosition);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestInteractable = interactable;
+            }
+        });
+
+        if (closestInteractable) {
+            closestInteractable.onInteract();
         }
     }
-    return false;
-}
 
-export function updateMovement(delta, controls) {
-    velocity.set(0, 0, 0);
-    controls.getDirection(direction);
-    direction.y = 0;
-    direction.normalize();
+    updateInteractionPrompt() {
+        const prompt = document.getElementById('interaction-prompt');
+        let closestInteractable = null;
+        let closestDist = 5;
 
-    const right = new THREE.Vector3(-direction.z, 0, direction.x);
+        state.interactables.forEach(interactable => {
+            const worldPosition = new THREE.Vector3();
+            interactable.mesh.getWorldPosition(worldPosition);
+            const dist = this.camera.position.distanceTo(worldPosition);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestInteractable = interactable;
+            }
+        });
 
-    if (keys['KeyW']) velocity.add(direction);
-    if (keys['KeyS']) velocity.sub(direction);
-    if (keys['KeyD']) velocity.add(right);
-    if (keys['KeyA']) velocity.sub(right);
-
-    if (velocity.length() > 0) {
-        velocity.normalize().multiplyScalar(movementSpeed * delta);
-        const player = controls.getObject();
-
-        // Check collision for X and Z axes separately to allow sliding along walls
-        let nextPosX = new THREE.Vector3(player.position.x + velocity.x, player.position.y, player.position.z);
-        if (!checkCollision(nextPosX)) {
-            player.position.x += velocity.x;
+        if (closestInteractable) {
+            prompt.innerText = closestInteractable.prompt;
+            prompt.style.display = 'block';
+        } else {
+            prompt.style.display = 'none';
         }
+    }
 
-        let nextPosZ = new THREE.Vector3(player.position.x, player.position.y, player.position.z + velocity.z);
-        if (!checkCollision(nextPosZ)) {
-            player.position.z += velocity.z;
+    update(delta) {
+        if (this.controls.isLocked) {
+            this.updateMovement(delta);
         }
+        this.updateInteractionPrompt();
+    }
+
+    updateMovement(delta) {
+        state.velocity.set(0, 0, 0);
+        this.controls.getDirection(state.direction);
+        state.direction.y = 0;
+        state.direction.normalize();
+
+        const right = new THREE.Vector3(-state.direction.z, 0, state.direction.x);
+
+        if (state.keys['KeyW']) state.velocity.add(state.direction);
+        if (state.keys['KeyS']) state.velocity.sub(state.direction);
+        if (state.keys['KeyD']) state.velocity.add(right);
+        if (state.keys['KeyA']) state.velocity.sub(right);
+
+        if (state.velocity.length() > 0) {
+            state.velocity.normalize().multiplyScalar(state.movementSpeed * delta);
+            const player = this.controls.getObject();
+
+            let nextPosX = new THREE.Vector3(player.position.x + state.velocity.x, player.position.y, player.position.z);
+            if (!this.checkCollision(nextPosX)) {
+                player.position.x += state.velocity.x;
+            }
+
+            let nextPosZ = new THREE.Vector3(player.position.x, player.position.y, player.position.z + state.velocity.z);
+            if (!this.checkCollision(nextPosZ)) {
+                player.position.z += state.velocity.z;
+            }
+        }
+    }
+
+    checkCollision(playerNextPos) {
+        const playerBox = new THREE.Box3().setFromCenterAndSize(playerNextPos, new THREE.Vector3(1, 5, 1));
+        for (const collider of state.colliders) {
+            const colliderBox = new THREE.Box3().setFromObject(collider);
+            if (playerBox.intersectsBox(colliderBox)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
