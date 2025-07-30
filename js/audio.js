@@ -1,4 +1,6 @@
-import { audioContext, setAudioContext, setRumbleNode } from './state.js';
+// js/audio.js
+
+import { audioContext, setAudioContext, setRumbleNode, mainAudioNodes, lodgeAudioNodes } from './state.js';
 
 export function playMeow() {
     if (!audioContext) return;
@@ -25,31 +27,37 @@ export function initAudio() {
             const newAudioContext = new (window.AudioContext || window.webkitAudioContext)();
             setAudioContext(newAudioContext);
 
-            // Wind sound
+            // --- Wind sound ---
             const bufferSize = 2 * newAudioContext.sampleRate;
             const noiseBuffer = newAudioContext.createBuffer(1, bufferSize, newAudioContext.sampleRate);
             const output = noiseBuffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+            
             const whiteNoise = newAudioContext.createBufferSource();
             whiteNoise.buffer = noiseBuffer;
             whiteNoise.loop = true;
             whiteNoise.start(0);
+            
             const windFilter = newAudioContext.createBiquadFilter();
             windFilter.type = 'bandpass';
             windFilter.frequency.setValueAtTime(700, newAudioContext.currentTime); 
             windFilter.Q.setValueAtTime(0.8, newAudioContext.currentTime);
+            
             const gustLFO = newAudioContext.createOscillator();
             gustLFO.type = 'sine';
             gustLFO.frequency.setValueAtTime(0.2, newAudioContext.currentTime); 
+            
             const gustLFOGain = newAudioContext.createGain();
             gustLFOGain.gain.setValueAtTime(80, newAudioContext.currentTime);
             gustLFO.connect(gustLFOGain);
             gustLFOGain.connect(windFilter.frequency);
             gustLFO.start(0);
+            
             const masterGain = newAudioContext.createGain();
             const volumeLFO = newAudioContext.createOscillator();
             volumeLFO.type = 'sine';
             volumeLFO.frequency.setValueAtTime(1 / 22, newAudioContext.currentTime); 
+            
             const volumeLFOGain = newAudioContext.createGain();
             const maxVolume = 0.008;
             volumeLFOGain.gain.setValueAtTime(maxVolume / 2, newAudioContext.currentTime); 
@@ -57,11 +65,17 @@ export function initAudio() {
             masterGain.gain.setValueAtTime(maxVolume / 2, newAudioContext.currentTime);
             volumeLFOGain.connect(masterGain.gain);
             volumeLFO.start(0);
+            
             whiteNoise.connect(windFilter);
             windFilter.connect(masterGain);
             masterGain.connect(newAudioContext.destination);
 
-            // Rumble sound
+            mainAudioNodes.masterGain = masterGain;
+            mainAudioNodes.whiteNoise = whiteNoise;
+            mainAudioNodes.windFilter = windFilter;
+
+
+            // --- Rumble sound ---
             const newRumbleOscillator = newAudioContext.createOscillator();
             const newRumbleGain = newAudioContext.createGain();
             newRumbleOscillator.connect(newRumbleGain);
@@ -76,5 +90,50 @@ export function initAudio() {
     }
     if (audioContext && audioContext.state === 'suspended') { 
         audioContext.resume(); 
+    }
+}
+
+
+/**
+ * Manages the transition between ambient desert sounds and Black Lodge music.
+ * @param {boolean} start - True to start lodge music, false to stop it.
+ */
+export function manageLodgeAudio(start) {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const fadeDuration = 3.0;
+
+    if (start) {
+        if (mainAudioNodes.masterGain) {
+            mainAudioNodes.masterGain.gain.cancelScheduledValues(now);
+            mainAudioNodes.masterGain.gain.linearRampToValueAtTime(0, now + fadeDuration);
+        }
+
+        const drone = audioContext.createOscillator();
+        drone.type = 'sine';
+        drone.frequency.setValueAtTime(55, now);
+
+        const droneGain = audioContext.createGain();
+        droneGain.gain.setValueAtTime(0, now);
+        droneGain.gain.linearRampToValueAtTime(0.15, now + fadeDuration);
+
+        drone.connect(droneGain);
+        droneGain.connect(audioContext.destination);
+        drone.start(now);
+
+        lodgeAudioNodes.drone = drone;
+        lodgeAudioNodes.droneGain = droneGain;
+
+    } else {
+        if (lodgeAudioNodes.droneGain) {
+            lodgeAudioNodes.droneGain.gain.cancelScheduledValues(now);
+            lodgeAudioNodes.droneGain.gain.linearRampToValueAtTime(0, now + fadeDuration);
+            lodgeAudioNodes.drone.stop(now + fadeDuration);
+        }
+        
+        if (mainAudioNodes.masterGain) {
+            mainAudioNodes.masterGain.gain.cancelScheduledValues(now);
+            mainAudioNodes.masterGain.gain.linearRampToValueAtTime(0.004, now + fadeDuration);
+        }
     }
 }

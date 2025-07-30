@@ -1,3 +1,5 @@
+// js/state.js
+
 import * as THREE from 'three';
 
 // --- Global State Management ---
@@ -5,9 +7,11 @@ import * as THREE from 'three';
 // Audio
 export let audioContext;
 export let rumbleNode;
+export const mainAudioNodes = {};
+export const lodgeAudioNodes = {};
+
 
 // Scene objects and materials
-export let neonLights = [];
 export let flickeringLights = [];
 export let fireMaterial;
 export let emberMaterial;
@@ -18,6 +22,12 @@ export const colliders = [];
 // Actors
 export let cat, voidPortal, voidLight, catHead, moon, catMoon, moonLight, catMoonLight;
 export let tentacles = [];
+
+// Twin Peaks / Black Lodge state
+export let lodgeState = 'inactive'; // 'inactive', 'transitioning', 'active'
+export let saloonInterior, blackLodge, lodgeStrobe, fireplaceBacking;
+export let saloonLights = [];
+
 
 // Game State
 export let catState = 'idle';
@@ -55,3 +65,10 @@ export function setNextGhostAppearance(newTime) { nextGhostAppearance = newTime;
 export function setScreenShake(newScreenShake) { screenShake = newScreenShake; }
 export function addTentacle(tentacle) { tentacles.push(tentacle); }
 export function getTentacles() { return tentacles; }
+
+// Lodge Setters
+export function setLodgeState(newState) { lodgeState = newState; }
+export function setSaloonInterior(group) { saloonInterior = group; }
+export function setBlackLodge(group) { blackLodge = group; }
+export function setLodgeStrobe(light) { lodgeStrobe = light; }
+export function setFireplaceBacking(mesh) { fireplaceBacking = mesh; }

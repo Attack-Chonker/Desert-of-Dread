@@ -1,3 +1,5 @@
+// js/Door.js
+
 import * as THREE from 'three';
 import { interactables, colliders } from './state.js';
 
