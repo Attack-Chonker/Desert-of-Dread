@@ -3,22 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Desert Looks Back</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Sometimes My Arms Bend Back</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital@1&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="crosshair"></div>
     <div id="warning">There is nothing out here.</div>
+    <div id="interaction-prompt"></div>
+    <!-- This new element will display the unsettling, reversed text of the Lodge -->
+    <div id="reversed-text"></div>
 
+    <!-- This import map tells the browser where to find "three" and its addons -->
     <script type="importmap">
         {
             "imports": {
                 "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
-                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/",
+                "simplex-noise": "https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/dist/esm/simplex-noise.js"
             }
         }
     </script>
 
+    <!-- Main game script -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

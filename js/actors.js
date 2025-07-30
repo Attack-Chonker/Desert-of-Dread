@@ -1,25 +1,43 @@
+// js/actors.js
+// Here we give form to the formless. Every object in the world, from a humble cactus to the Man From Another Place, is born here.
+
 import * as THREE from 'three';
-import * as state from './state.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { createNoise2D } from 'simplex-noise';
+import { Door } from './Door.js';
+import { createZigZagFloorTexture, createCurtainTexture, createBrickTexture } from './textures.js';
+import { 
+    colliders, doors, flickeringLights, setMoonLight, setMoon, setCat, 
+    setCatHead, setVoidPortal, setVoidLight, addTentacle, cat, interactables, 
+    saloonLights, setSaloonInterior, setBlackLodge, setLodgeStrobe, 
+    setFireplaceBacking, setManFromAnotherPlace, setLodgeStatue, setDoppelganger
+} from './state.js';
+import { createGasStation, createCat as createOriginalCat, createVoidPortalAndTentacles, createTrashCans, createVegetation, createWaterTower, createTelephonePoles, createEnterableCar, createGasStationSign, createFace } from './actors-original.js';
+
+export { createGasStation, createVoidPortalAndTentacles, createTrashCans, createVegetation, createWaterTower, createTelephonePoles, createEnterableCar, createGasStationSign, createFace };
+
+
+// --- WORLD CREATION ---
 
 export function createLightingAndWorld(scene) {
     const ambientLight = new THREE.AmbientLight(0x404050, 0.2);
     scene.add(ambientLight);
-    const moonLight = new THREE.DirectionalLight(0x8a95a1, 0.6);
-    moonLight.position.set(100, 200, 100);
-    moonLight.castShadow = true;
-    moonLight.shadow.mapSize.width = 2048;
-    moonLight.shadow.mapSize.height = 2048;
-    scene.add(moonLight);
-    state.setMoonLight(moonLight);
+    const newMoonLight = new THREE.DirectionalLight(0x8a95a1, 0.6);
+    newMoonLight.position.set(100, 200, 100);
+    newMoonLight.castShadow = true;
+    newMoonLight.shadow.mapSize.width = 2048;
+    newMoonLight.shadow.mapSize.height = 2048;
+    scene.add(newMoonLight);
+    setMoonLight(newMoonLight);
 
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x6b5a42 }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(8, 600), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(5000, 15), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
     road.rotation.x = -Math.PI / 2;
-    road.position.set(150, 0.01, -200);
+    road.position.set(0, 0.01, -470);
     road.receiveShadow = true;
     scene.add(road);
 }
@@ -66,354 +84,401 @@ export function createMoon(scene) {
         emissiveIntensity: 0.8,
         transparent: true
     });
-    const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-    moon.position.set(200, 300, -800);
-    moon.rotation.y = Math.PI;
-    scene.add(moon);
-    state.setMoon(moon);
+    const newMoon = new THREE.Mesh(moonGeometry, moonMaterial);
+    newMoon.position.set(200, 300, -800);
+    newMoon.rotation.y = Math.PI;
+    scene.add(newMoon);
+    setMoon(newMoon);
 }
 
-export function createGasStation(scene) {
-    const station = new THREE.Group();
-    station.position.set(150, 0, -500);
-    scene.add(station);
+/**
+ * Creates a procedural mountain range to surround the scene.
+ * This is not just a mountain range. This is the Ghostwood. It watches.
+ * @param {THREE.Scene} scene The scene to add the mountains to.
+ */
+export function createMountainRange(scene) {
+    const noise = createNoise2D();
+
+    // This function generates one side of the mountain range.
+    // We will call it four times to completely encircle the world.
+    function generateMountainSide(rotationY, position) {
+        const geometry = new THREE.PlaneGeometry(4000, 1200, 200, 50);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x152520, // A dark, Twin Peaks, Douglas Fir green.
+            roughness: 0.9,
+            metalness: 0.1,
+            side: THREE.FrontSide
+        });
+
+        const positions = geometry.attributes.position;
+        const vertex = new THREE.Vector3();
+
+        for (let i = 0; i < positions.count; i++) {
+            vertex.fromBufferAttribute(positions, i);
+
+            // We use multiple layers of noise (octaves) to create a more natural, complex terrain.
+            // It's a secret recipe. A little from here, a little from there.
+            const noiseScale = 800;
+            const noise1 = noise(vertex.x / noiseScale, vertex.y / noiseScale) * 0.5;
+            const noise2 = noise(vertex.x / (noiseScale * 0.3), vertex.y / (noiseScale * 0.3)) * 0.25;
+            const noise3 = noise(vertex.x / (noiseScale * 0.1), vertex.y / (noiseScale * 0.1)) * 0.125;
+            
+            const totalNoise = noise1 + noise2 + noise3;
+            
+            const height = totalNoise * 1000; // The height of the peaks.
+
+            // We apply the height to the z-axis because we will rotate the plane to be vertical.
+            positions.setZ(i, height);
+        }
+
+        geometry.computeVertexNormals(); // Recalculate normals for correct lighting.
+
+        const mountain = new THREE.Mesh(geometry, material);
+        mountain.rotation.x = -Math.PI / 2; // Lay it flat first
+        mountain.rotation.z = Math.PI;      // Flip it
+        
+        // Now position and rotate it into place.
+        mountain.rotation.y = rotationY;
+        mountain.position.copy(position);
+        
+        mountain.receiveShadow = true;
+        scene.add(mountain);
+    }
+
+    // Create the four walls of our mountain prison.
+    generateMountainSide(0, new THREE.Vector3(0, 0, -2000)); // Back
+    generateMountainSide(Math.PI, new THREE.Vector3(0, 0, 2000)); // Front
+    generateMountainSide(Math.PI / 2, new THREE.Vector3(-2000, 0, 0)); // Left
+    generateMountainSide(-Math.PI / 2, new THREE.Vector3(2000, 0, 0)); // Right
+}
+
+
+export function createCat(scene) {
+    return createOriginalCat(scene);
+}
+
+// --- BUILDING CREATION ---
+
+export function createSaloon(scene, font, game) {
+    const saloon = new THREE.Group();
+    saloon.position.set(-150, 0, -500);
+    scene.add(saloon);
+    
+    const saloonInterior = new THREE.Group();
+    saloon.add(saloonInterior);
+    setSaloonInterior(saloonInterior);
+
     const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x3d2c1a, roughness: 0.8 });
     const darkWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x241a0f, roughness: 0.9 });
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9, side: THREE.DoubleSide });
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
-    const buildingWidth = 50, buildingDepth = 25, buildingHeight = 10, wallThickness = 0.5;
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), floorMaterial);
+    const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.9 });
+    const exteriorMaterial = darkWoodMaterial;
+    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x9a7142, roughness: 0.8 });
+
+    const buildingWidth = 40, buildingDepth = 30, buildingHeight = 12, wallThickness = 0.5;
+
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), woodMaterial);
     floor.position.y = wallThickness / 2;
     floor.receiveShadow = true;
-    station.add(floor);
-    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), wallMaterial);
+    saloon.add(floor);
+
+    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), darkWoodMaterial);
     ceiling.position.y = buildingHeight - (wallThickness / 2);
     ceiling.castShadow = true;
-    station.add(ceiling);
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, buildingHeight, wallThickness), wallMaterial);
-    backWall.position.z = -buildingDepth / 2;
-    backWall.position.y = buildingHeight / 2;
-    station.add(backWall);
-    state.colliders.push(backWall);
-    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), wallMaterial);
-    rightWall.position.x = buildingWidth / 2;
-    rightWall.position.y = buildingHeight / 2;
-    station.add(rightWall);
-    state.colliders.push(rightWall);
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, buildingHeight, buildingDepth), wallMaterial);
-    leftWall.position.x = -buildingWidth / 2;
-    leftWall.position.y = buildingHeight / 2;
-    station.add(leftWall);
-    state.colliders.push(leftWall);
+    saloon.add(ceiling);
+
+    const overheadLight = new THREE.PointLight(0xfff0e1, 0.7, 60, 1.5);
+    overheadLight.position.set(0, buildingHeight - 2, 0);
+    saloon.add(overheadLight);
+    saloonLights.push({light: overheadLight, initialIntensity: 0.7});
+
+
+    function createWall(width, height, position, rotationY = 0) {
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, wallThickness), exteriorMaterial);
+        wall.position.copy(position);
+        wall.rotation.y = rotationY;
+        saloon.add(wall);
+        colliders.push(wall);
+    }
+    
+    // Back and Left walls
+    createWall(buildingWidth, buildingHeight, new THREE.Vector3(0, buildingHeight / 2, -buildingDepth / 2));
+    createWall(buildingDepth, buildingHeight, new THREE.Vector3(-buildingWidth / 2, buildingHeight / 2, 0), Math.PI / 2);
+    
+    // Right wall is now solid again. The fireplace will sit in front of it.
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(buildingDepth, buildingHeight, wallThickness), exteriorMaterial);
+    rightWall.position.set(buildingWidth / 2, buildingHeight / 2, 0);
+    rightWall.rotation.y = Math.PI / 2;
+    saloon.add(rightWall);
+    colliders.push(rightWall);
+
+    // Front wall built around the doors
     const doorWidth = 8, doorHeight = 7;
-    const frontWallLeft = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), wallMaterial);
-    frontWallLeft.position.set(-(buildingWidth/4 + doorWidth/4), buildingHeight/2, buildingDepth / 2);
-    station.add(frontWallLeft);
-    state.colliders.push(frontWallLeft);
-    const frontWallRight = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth/2 - doorWidth/2, buildingHeight, wallThickness), wallMaterial);
-    frontWallRight.position.set(buildingWidth/4 + doorWidth/4, buildingHeight/2, buildingDepth / 2);
-    station.add(frontWallRight);
-    state.colliders.push(frontWallRight);
-    const frontWallTop = new THREE.Mesh(new THREE.BoxGeometry(doorWidth, buildingHeight - doorHeight, wallThickness), wallMaterial);
-    frontWallTop.position.set(0, doorHeight + (buildingHeight - doorHeight)/2, buildingDepth / 2);
-    station.add(frontWallTop);
-    state.colliders.push(frontWallTop);
-    const facade = new THREE.Group();
-    station.add(facade);
-    const facadeSteps = [ { w: 40, h: 4, x: 0 }, { w: 35, h: 3, x: 0 }, { w: 25, h: 2, x: 0 } ];
-    let currentHeight = buildingHeight;
-    facadeSteps.forEach(step => {
-        const facadeBlock = new THREE.Mesh(new THREE.BoxGeometry(step.w, step.h, 1), wallMaterial);
-        facadeBlock.position.set(step.x, currentHeight + step.h / 2, buildingDepth / 2 + 0.5);
-        facadeBlock.castShadow = true;
-        facade.add(facadeBlock);
-        currentHeight += step.h;
-    });
-    const porchDepth = 8;
+    const frontWallSideWidth = (buildingWidth / 2) - (doorWidth / 2);
+    createWall(frontWallSideWidth, buildingHeight, new THREE.Vector3(-(doorWidth + frontWallSideWidth) / 2, buildingHeight / 2, buildingDepth / 2));
+    createWall(frontWallSideWidth, buildingHeight, new THREE.Vector3((doorWidth + frontWallSideWidth) / 2, buildingHeight / 2, buildingDepth / 2));
+    createWall(doorWidth, buildingHeight - doorHeight, new THREE.Vector3(0, doorHeight + (buildingHeight - doorHeight) / 2, buildingDepth / 2));
+    
+    const doorPositionLeft = new THREE.Vector3(-doorWidth / 2, doorHeight / 2, buildingDepth / 2);
+    const doorPositionRight = new THREE.Vector3(doorWidth / 2, doorHeight / 2, buildingDepth / 2);
+
+    const leftDoor = new Door(true, doorWidth, doorHeight, doorMaterial, doorPositionLeft);
+    leftDoor.addToScene(saloon);
+    doors.push(leftDoor);
+
+    const rightDoor = new Door(false, doorWidth, doorHeight, doorMaterial, doorPositionRight);
+    rightDoor.addToScene(saloon);
+    doors.push(rightDoor);
+
+    const barHeight = 4, barDepth = 3, barWidth = buildingWidth - 10;
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(barWidth, barHeight, barDepth), darkWoodMaterial);
+    bar.position.set(0, barHeight / 2, -buildingDepth / 2 + barDepth / 2 + 5);
+    bar.castShadow = true;
+    saloonInterior.add(bar);
+    colliders.push(bar);
+
+    function createJukebox() {
+        const jukeGroup = new THREE.Group();
+        const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x6e260e, roughness: 0.4, metalness: 0.1 });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(5, 7, 3), bodyMaterial);
+        body.position.y = 3.5;
+        jukeGroup.add(body);
+        colliders.push(body);
+        const topArch = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 3, 16, 1, false, 0, Math.PI), bodyMaterial);
+        topArch.rotation.x = -Math.PI / 2;
+        topArch.rotation.y = Math.PI / 2;
+        topArch.position.y = 7;
+        jukeGroup.add(topArch);
+        jukeGroup.position.set(-buildingWidth/2 + 4, 0, buildingDepth/2 - 4);
+        jukeGroup.rotation.y = Math.PI / 4;
+        saloonInterior.add(jukeGroup);
+
+        const jukeBoxInteractable = {
+            mesh: jukeGroup,
+            prompt: `"...Let's rock."`,
+            onInteract: () => {
+                if (game && game.triggerLodgeSequence) {
+                    game.triggerLodgeSequence();
+                }
+            }
+        };
+        interactables.push(jukeBoxInteractable);
+    }
+    createJukebox();
+
+    const porchDepth = 10;
     const porchFloor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 0.5, porchDepth), woodMaterial);
     porchFloor.position.set(0, 0.25, buildingDepth / 2 + porchDepth / 2);
     porchFloor.receiveShadow = true;
-    station.add(porchFloor);
-    const porchRoof = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 0.5, porchDepth), darkWoodMaterial);
-    porchRoof.position.set(0, buildingHeight + 0.25, buildingDepth / 2 + porchDepth / 2);
-    porchRoof.castShadow = true;
-    station.add(porchRoof);
-    for (let i = -2; i <= 2; i++) {
-        if (i === 0) continue; 
-        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, buildingHeight, 8), darkWoodMaterial);
-        post.position.set(i * (buildingWidth / 4), buildingHeight / 2, buildingDepth / 2 + porchDepth - 1);
-        post.castShadow = true;
-        station.add(post);
-        state.colliders.push(post);
-    }
-    const counter = new THREE.Mesh(new THREE.BoxGeometry(20, 3.5, 3), darkWoodMaterial);
-    counter.position.set(0, 3.5/2, -buildingDepth/2 + 5);
-    counter.castShadow = true;
-    station.add(counter);
-    state.colliders.push(counter);
-    for(let i = 0; i < 4; i++) {
-        const shelf = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 2), darkWoodMaterial);
-        shelf.position.set(-buildingWidth/2 + 8, 4, -buildingDepth/2 + 10 + i * 5);
-        shelf.castShadow = true;
-        station.add(shelf);
-        state.colliders.push(shelf);
-    }
-    function createChessboard() {
-        const boardGroup = new THREE.Group();
-        const tileSize = 0.8;
-        const boardSize = 8 * tileSize;
-        const darkSquareMaterial = new THREE.MeshStandardMaterial({ color: 0x402218 }); 
-        const lightSquareMaterial = new THREE.MeshStandardMaterial({ color: 0xE8DAB2 });
-        for (let i = 0; i < 8; i++) {
-            for (let j = 0; j < 8; j++) {
-                const isLight = (i + j) % 2 !== 0;
-                const tileMaterial = isLight ? lightSquareMaterial : darkSquareMaterial;
-                const tile = new THREE.Mesh(new THREE.PlaneGeometry(tileSize, tileSize), tileMaterial);
-                tile.position.set(i * tileSize - boardSize / 2 + tileSize / 2, j * tileSize - boardSize / 2 + tileSize / 2, 0);
-                boardGroup.add(tile);
-            }
-        }
-        boardGroup.position.set(0, buildingHeight - 0.3, 0);
-        boardGroup.rotation.x = Math.PI / 2;
-        station.add(boardGroup);
-    }
-    createChessboard();
-    const neonMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const neonRadius = 0.1;
-    const outlinePoints = [
-        new THREE.Vector3(-buildingWidth/2, buildingHeight, buildingDepth/2 + 1), new THREE.Vector3(buildingWidth/2, buildingHeight, buildingDepth/2 + 1),
-        new THREE.Vector3(buildingWidth/2, buildingHeight, buildingDepth/2 + 1), new THREE.Vector3(buildingWidth/2, buildingHeight + facadeSteps[0].h, buildingDepth/2 + 1),
-        new THREE.Vector3(20, 14, 13.5), new THREE.Vector3(17.5, 14, 13.5),
-        new THREE.Vector3(17.5, 14, 13.5), new THREE.Vector3(17.5, 17, 13.5),
-        new THREE.Vector3(17.5, 17, 13.5), new THREE.Vector3(12.5, 17, 13.5),
-        new THREE.Vector3(12.5, 17, 13.5), new THREE.Vector3(12.5, 19, 13.5),
-        new THREE.Vector3(12.5, 19, 13.5), new THREE.Vector3(-12.5, 19, 13.5),
-        new THREE.Vector3(-12.5, 19, 13.5), new THREE.Vector3(-12.5, 17, 13.5),
-        new THREE.Vector3(-12.5, 17, 13.5), new THREE.Vector3(-17.5, 17, 13.5),
-        new THREE.Vector3(-17.5, 17, 13.5), new THREE.Vector3(-17.5, 14, 13.5),
-        new THREE.Vector3(-17.5, 14, 13.5), new THREE.Vector3(-20, 14, 13.5),
-        new THREE.Vector3(-buildingWidth/2, buildingHeight + facadeSteps[0].h, buildingDepth/2 + 1), new THREE.Vector3(-buildingWidth/2, buildingHeight, buildingDepth/2 + 1),
-    ];
-    for (let i = 0; i < outlinePoints.length; i += 2) {
-        const start = outlinePoints[i];
-        const end = outlinePoints[i+1];
-        const path = new THREE.LineCurve3(start, end);
-        const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 1, neonRadius, 8, false), neonMaterial);
-        station.add(tube);
-        const neonLight = new THREE.PointLight(0xff0000, 150, 50, 2);
-        neonLight.position.copy(start.clone().lerp(end, 0.5));
-        station.add(neonLight);
-        state.neonLights.push(neonLight);
-    }
-    state.colliders.forEach(c => {
-        c.updateWorldMatrix(true, false);
-        c.geometry.computeBoundingBox();
+    saloon.add(porchFloor);
+
+    const fireplaceAssembly = new THREE.Group();
+    saloon.add(fireplaceAssembly);
+    const brickTexture = createBrickTexture();
+    const stoneMaterialWithBricks = new THREE.MeshStandardMaterial({ map: brickTexture });
+
+    const chimneyWidth = 8, chimneyDepth = 4, openingHeight = 5, openingWidth = 5;
+    // Position the fireplace inside the right wall
+    const assemblyX = buildingWidth / 2 - chimneyDepth / 2 - wallThickness;
+    fireplaceAssembly.position.set(assemblyX, 0, 0);
+    fireplaceAssembly.rotation.y = -Math.PI / 2;
+    
+    const sideWidth = (chimneyWidth - openingWidth) / 2;
+
+    const leftChimneyPart = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, openingHeight, chimneyDepth), stoneMaterialWithBricks);
+    leftChimneyPart.position.set(-(openingWidth / 2 + sideWidth / 2), openingHeight / 2, 0);
+    fireplaceAssembly.add(leftChimneyPart);
+    colliders.push(leftChimneyPart);
+
+    const rightChimneyPart = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, openingHeight, chimneyDepth), stoneMaterialWithBricks);
+    rightChimneyPart.position.set(openingWidth / 2 + sideWidth / 2, openingHeight / 2, 0);
+    fireplaceAssembly.add(rightChimneyPart);
+    colliders.push(rightChimneyPart);
+    
+    const topChimneyPart = new THREE.Mesh(new THREE.BoxGeometry(chimneyWidth, buildingHeight + 5 - openingHeight, chimneyDepth), stoneMaterialWithBricks);
+    topChimneyPart.position.set(0, openingHeight + (buildingHeight + 5 - openingHeight) / 2, 0);
+    fireplaceAssembly.add(topChimneyPart);
+    colliders.push(topChimneyPart);
+
+    const backBrick = new THREE.Mesh(
+        new THREE.PlaneGeometry(openingWidth, openingHeight), 
+        new THREE.MeshStandardMaterial({ 
+            map: brickTexture, 
+            transparent: true
+        })
+    );
+    backBrick.position.set(0, openingHeight/2, -chimneyDepth/2 + 0.01);
+    fireplaceAssembly.add(backBrick);
+    setFireplaceBacking(backBrick);
+    // The back of the fireplace is the true door. It only becomes non-solid when the time is right.
+    colliders.push(backBrick);
+
+    return saloon;
+}
+
+// --- THE BLACK LODGE ---
+
+function createLodgeArmchair() {
+    const chair = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial({ color: '#7B0001', roughness: 0.6 });
+    
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 3), material);
+    seat.position.y = 1.5;
+    chair.add(seat);
+
+    const back = new THREE.Mesh(new THREE.BoxGeometry(3, 3, 0.8), material);
+    back.position.y = 3.5;
+    back.position.z = -1.1;
+    chair.add(back);
+
+    const armGeo = new THREE.BoxGeometry(0.8, 1.5, 3);
+    const leftArm = new THREE.Mesh(armGeo, material);
+    leftArm.position.set(-1.9, 2.0, 0);
+    chair.add(leftArm);
+    const rightArm = new THREE.Mesh(armGeo, material);
+    rightArm.position.set(1.9, 2.0, 0);
+    chair.add(rightArm);
+
+    chair.castShadow = true;
+    // Add the chair to the colliders so you can't walk through it.
+    chair.traverse(child => {
+        if (child.isMesh) colliders.push(child);
     });
+    return chair;
 }
 
-export function createCat(scene) {
-    const cat = new THREE.Group();
-    scene.add(cat);
-    const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
-    const accentMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
-    const innerEarMaterial = new THREE.MeshStandardMaterial({ color: 0xdb7093, roughness: 0.9 });
-    const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffc940 });
-    const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const bodyMesh = new THREE.Mesh(new THREE.SphereGeometry(1.4, 20, 16), bodyMaterial);
-    bodyMesh.scale.set(1, 1.2, 0.9);
-    bodyMesh.position.y = (1.4 * 1.2) / 2;
-    bodyMesh.castShadow = true;
-    cat.add(bodyMesh);
-    const catHead = new THREE.Group();
-    cat.add(catHead);
-    catHead.position.y = (1.4 * 1.2) + 0.5;
-    catHead.position.z = 0.2;
-    const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.8, 20, 16), bodyMaterial);
-    headMesh.castShadow = true;
-    catHead.add(headMesh);
-    const eyeRadius = 0.15;
-    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 12, 8), eyeMaterial);
-    leftEye.position.set(0.3, 0.15, 0.7);
-    leftEye.name = "leftEye";
-    catHead.add(leftEye);
-    const rightEye = new THREE.Mesh(new THREE.SphereGeometry(eyeRadius, 12, 8), eyeMaterial);
-    rightEye.position.set(-0.3, 0.15, 0.7);
-    rightEye.name = "rightEye";
-    catHead.add(rightEye);
-    const pupil = new THREE.Mesh(new THREE.CircleGeometry(eyeRadius * 0.6, 12), pupilMaterial);
-    pupil.position.z = 0.7 + eyeRadius + 0.01;
-    const leftPupil = pupil.clone();
-    leftPupil.position.x = 0.3;
-    leftPupil.position.y = 0.15;
-    const rightPupil = pupil.clone();
-    rightPupil.position.x = -0.3;
-    rightPupil.position.y = 0.15;
-    catHead.add(leftPupil, rightPupil);
-    const earScale = 2.8;
-    const earOuter = new THREE.Mesh(new THREE.ConeGeometry(0.25 * earScale, 0.5 * earScale, 8), bodyMaterial);
-    const earInner = new THREE.Mesh(new THREE.ConeGeometry(0.18 * earScale, 0.4 * earScale, 8), innerEarMaterial);
-    earInner.position.z = 0.05;
-    const leftEar = new THREE.Group().add(earOuter.clone(), earInner.clone());
-    leftEar.position.set(0.4, 0.5, 0);
-    leftEar.rotation.set(0, 0, -Math.PI / 10);
-    const rightEar = new THREE.Group().add(earOuter.clone(), earInner.clone());
-    rightEar.position.set(-0.4, 0.5, 0);
-    rightEar.rotation.z = Math.PI / 10;
-    catHead.add(leftEar, rightEar);
-    const leg = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 8), bodyMaterial);
-    leg.scale.set(0.8 * 0.7, 1.8 * 0.7, 0.8 * 0.7);
-    leg.position.y = 0.6;
-    leg.position.z = 1;
-    leg.castShadow = true;
-    const leftLeg = leg.clone();
-    leftLeg.position.x = 0.45;
-    const rightLeg = leg.clone();
-    rightLeg.position.x = -0.45;
-    cat.add(leftLeg, rightLeg);
-    const paw = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), accentMaterial);
-    paw.scale.set(1.1 * 0.7, 0.7 * 0.7, 1 * 0.7);
-    paw.position.y = 0.2;
-    paw.position.z = 1.2;
-    paw.castShadow = true;
-    const leftPaw = paw.clone();
-    leftPaw.position.x = 0.45;
-    const rightPaw = paw.clone();
-    rightPaw.position.x = -0.45;
-    cat.add(leftPaw, rightPaw);
-    const tailCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, 0.8, -0.6), new THREE.Vector3(-0.8, 0.4, -1.0),
-        new THREE.Vector3(-1.5, 0.15, -0.4), new THREE.Vector3(-1.8, 0.1, 0.3),
-    ]);
-    const tailGeometry = new THREE.TubeGeometry(tailCurve, 32, 0.2, 8, false);
-    const tail = new THREE.Mesh(tailGeometry, bodyMaterial);
-    tail.castShadow = true;
-    cat.add(tail);
-    cat.position.set(150, 0, -515);
-    cat.rotation.y = Math.PI;
+function createLodgeStatue() {
+    const statue = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial({ color: '#e0dacd', roughness: 0.3 });
 
-    state.setCat(cat);
-    state.setCatHead(catHead);
-}
+    const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.5, 16), material);
+    statue.add(pedestal);
 
-export function createVoidPortalAndTentacles(scene) {
-    const portalGeometry = new THREE.CircleGeometry(5, 64);
-    const portalMaterial = new THREE.ShaderMaterial({
-        uniforms: { u_time: { value: 0.0 }, },
-        vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-        fragmentShader: `
-            uniform float u_time; varying vec2 vUv;
-            float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123); }
-            float noise(vec2 st) {
-                vec2 i = floor(st); vec2 f = fract(st);
-                float a = random(i); float b = random(i + vec2(1.0, 0.0));
-                float c = random(i + vec2(0.0, 1.0)); float d = random(i + vec2(1.0, 1.0));
-                vec2 u = f * f * (3.0 - 2.0 * f);
-                return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.y * u.x;
-            }
-            void main() {
-                vec2 p = vUv - 0.5; float r = length(p); float angle = atan(p.y, p.x);
-                float swirl = noise(vec2(r * 4.0 - u_time * 0.3, angle * 2.0));
-                vec3 color = vec3(swirl * 0.2, 0.0, swirl * 0.4);
-                float edge = 1.0 - smoothstep(0.4, 0.5, r);
-                gl_FragColor = vec4(color, edge);
-            }`,
-        transparent: true, side: THREE.DoubleSide
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1, 4, 12), material);
+    body.position.y = 2.5;
+    statue.add(body);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), material);
+    head.position.y = 5.0;
+    statue.add(head);
+    
+    statue.castShadow = true;
+    setLodgeStatue(statue);
+    statue.traverse(child => {
+        if (child.isMesh) colliders.push(child);
     });
-    const voidPortal = new THREE.Mesh(portalGeometry, portalMaterial);
-    voidPortal.position.set(150, 0.1, -515);
-    voidPortal.rotation.x = -Math.PI / 2;
-    voidPortal.scale.set(0, 0, 0);
-    scene.add(voidPortal);
-    state.setVoidPortal(voidPortal);
-
-    const voidLight = new THREE.PointLight(0x440044, 0, 30, 2);
-    voidLight.position.set(150, 2, -515);
-    scene.add(voidLight);
-    state.setVoidLight(voidLight);
-
-    const tentacleMaterial = new THREE.MeshStandardMaterial({ color: 0x100010, roughness: 0.8 });
-    for (let i = 0; i < 5; i++) {
-        const points = [];
-        for (let j = 0; j < 10; j++) {
-            points.push(new THREE.Vector3(0, j * 1.5, 0));
-        }
-        const curve = new THREE.CatmullRomCurve3(points);
-        const geometry = new THREE.TubeGeometry(curve, 20, 0.3, 8, false);
-        const tentacle = new THREE.Mesh(geometry, tentacleMaterial);
-        const angle = (i / 5) * Math.PI * 2;
-        const radius = Math.random() * 2 + 1.5;
-        tentacle.position.set(voidPortal.position.x + Math.cos(angle) * radius, -10, voidPortal.position.z + Math.sin(angle) * radius);
-        tentacle.userData.angle = angle;
-        tentacle.userData.radius = radius;
-        tentacle.visible = false;
-        scene.add(tentacle);
-        state.addTentacle(tentacle);
-    }
+    return statue;
 }
 
-export function createTrashCans(scene) {
-    const canMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.7, roughness: 0.5 });
-    const createCan = (x, z, rotation) => {
-        const canGroup = new THREE.Group(); scene.add(canGroup);
-        canGroup.position.set(x, 0, z); canGroup.rotation.y = rotation;
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.4, 4, 12), canMaterial);
-        body.position.y = 2; body.castShadow = true; canGroup.add(body); state.colliders.push(body);
-        const lid = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.3, 12), canMaterial);
-        lid.position.y = 4.15; lid.castShadow = true; lid.rotation.x = Math.PI / 16; canGroup.add(lid);
-    };
-    createCan(147, -515, Math.PI / 8); createCan(153, -515, -Math.PI / 12);
+function createManFromAnotherPlace() {
+    const man = new THREE.Group();
+    const redSuitMaterial = new THREE.MeshStandardMaterial({ color: '#A52A2A', roughness: 0.7 });
+    const skinMaterial = new THREE.MeshStandardMaterial({ color: '#f2d3b3', roughness: 0.8 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.5, 1), redSuitMaterial);
+    body.position.y = 1.25;
+    man.add(body);
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), skinMaterial);
+    head.position.y = 3.0;
+    man.add(head);
+
+    man.castShadow = true;
+    setManFromAnotherPlace(man);
+    man.traverse(child => {
+        if (child.isMesh) colliders.push(child);
+    });
+    return man;
 }
 
-export function createVegetation(scene) {
-    const cactusMaterial = new THREE.MeshStandardMaterial({ color: 0x2e602e });
-    const shrubMaterial = new THREE.MeshStandardMaterial({ color: 0x1a3a1a });
-    function createCactus(x, z) {
-        const cactus = new THREE.Group();
-        const mainHeight = Math.random() * 2.5 + 1;
-        const mainBody = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, mainHeight, 8), cactusMaterial);
-        mainBody.position.y = mainHeight / 2;
-        mainBody.castShadow = true;
-        cactus.add(mainBody);
-        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 8), cactusMaterial);
-        arm.position.set(0.3, mainHeight * 0.7, 0);
-        arm.rotation.z = -Math.PI / 2;
-        arm.castShadow = true;
-        cactus.add(arm);
-        cactus.position.set(x, 0, z);
-        scene.add(cactus);
-    }
-    function createShrub(x, z) {
-        const shrub = new THREE.Mesh(new THREE.SphereGeometry(Math.random() * 0.8 + 0.4, 8, 6), shrubMaterial);
-        shrub.position.set(x, 0.5, z);
-        shrub.castShadow = true;
-        scene.add(shrub);
-    }
-    for (let i = 0; i < 200; i++) {
-        const x = (Math.random() - 0.5) * 500;
-        const z = (Math.random() - 0.5) * 500;
-        if (x*x + z*z > 100) { 
-            if (Math.random() > 0.5) createCactus(x, z);
-            else createShrub(x, z);
-        }
-    }
+export function createDoppelganger(camera) {
+    const ganger = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), material);
+    head.position.y = 3.8;
+    ganger.add(head);
+
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.4, 3, 4, 8), material);
+    body.position.y = 1.9;
+    ganger.add(body);
+
+    ganger.visible = false; 
+    setDoppelganger(ganger);
+    return ganger;
 }
 
-export function createFace(scene) {
-    const face = new THREE.Group();
-    const faceMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc });
-    const facePlane = new THREE.Mesh(new THREE.PlaneGeometry(8, 11), faceMaterial);
-    face.add(facePlane);
-    const featureMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const leftEye = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), featureMaterial);
-    leftEye.position.set(-2, 2, 0.1);
-    face.add(leftEye);
-    const rightEye = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2), featureMaterial);
-    rightEye.position.set(2, 2, 0.1);
-    face.add(rightEye);
-    const mouth = new THREE.Mesh(new THREE.PlaneGeometry(2, 3.5), featureMaterial);
-    mouth.position.set(0, -2.5, 0.1);
-    face.add(mouth);
-    face.visible = false;
-    scene.add(face);
-    return face;
-} 
+
+export function createBlackLodge(saloon) {
+    const lodgeGroup = new THREE.Group();
+    lodgeGroup.visible = false; 
+    
+    const buildingWidth = 40, buildingDepth = 30, buildingHeight = 12;
+
+    const zigZagFloorMaterial = new THREE.MeshStandardMaterial({ map: createZigZagFloorTexture() });
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, 0.5, buildingDepth), zigZagFloorMaterial);
+    floor.position.y = 0.25;
+    floor.receiveShadow = true;
+    lodgeGroup.add(floor);
+
+    const redCurtainTexture = createCurtainTexture(true); 
+    const curtainMaterial = new THREE.MeshStandardMaterial({ 
+        map: redCurtainTexture, 
+        side: THREE.DoubleSide,
+        roughness: 0.8,
+        metalness: 0.1
+    });
+    
+    // The curtain walls are now physical barriers.
+    const curtainWall = new THREE.Mesh(new THREE.PlaneGeometry(buildingWidth, buildingHeight), curtainMaterial);
+    curtainWall.position.set(0, buildingHeight / 2, -buildingDepth / 2 + 0.5);
+    curtainWall.receiveShadow = true;
+    lodgeGroup.add(curtainWall);
+    colliders.push(curtainWall);
+
+    const curtainWall2 = curtainWall.clone();
+    curtainWall2.rotation.y = Math.PI / 2;
+    curtainWall2.position.set(-buildingWidth / 2 + 0.5, buildingHeight / 2, 0);
+    lodgeGroup.add(curtainWall2);
+    colliders.push(curtainWall2);
+    
+    const curtainWall3 = curtainWall.clone();
+    curtainWall3.rotation.y = -Math.PI / 2;
+    curtainWall3.position.set(buildingWidth / 2 - 0.5, buildingHeight / 2, 0);
+    lodgeGroup.add(curtainWall3);
+    colliders.push(curtainWall3);
+
+    const curtainWall4 = curtainWall.clone();
+    curtainWall4.rotation.y = Math.PI;
+    curtainWall4.position.set(0, buildingHeight / 2, buildingDepth / 2 - 0.5);
+    lodgeGroup.add(curtainWall4);
+    colliders.push(curtainWall4);
+
+    const armchair1 = createLodgeArmchair();
+    armchair1.position.set(-10, 0, -5);
+    lodgeGroup.add(armchair1);
+
+    const armchair2 = createLodgeArmchair();
+    armchair2.position.set(10, 0, -5);
+    armchair2.rotation.y = Math.PI;
+    lodgeGroup.add(armchair2);
+
+    const statue = createLodgeStatue();
+    statue.position.set(0, 0.25, -10);
+    lodgeGroup.add(statue);
+
+    const littleMan = createManFromAnotherPlace();
+    littleMan.position.set(5, 0, 5);
+    lodgeGroup.add(littleMan);
+
+    const strobe = new THREE.SpotLight(0xffffff, 0, 80, Math.PI * 0.3, 0.25, 1);
+    strobe.position.set(0, buildingHeight, 0);
+    strobe.target.position.set(0, 0, 0);
+    strobe.castShadow = true;
+    lodgeGroup.add(strobe);
+    lodgeGroup.add(strobe.target);
+    
+    saloon.add(lodgeGroup);
+    
+    setBlackLodge(lodgeGroup);
+    setLodgeStrobe(strobe);
+}
