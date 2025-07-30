@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { createNoise2D } from 'simplex-noise';
 import { Door } from './Door.js';
 import { createZigZagFloorTexture, createCurtainTexture, createBrickTexture } from './textures.js';
 import { 
@@ -89,6 +90,68 @@ export function createMoon(scene) {
     scene.add(newMoon);
     setMoon(newMoon);
 }
+
+/**
+ * Creates a procedural mountain range to surround the scene.
+ * This is not just a mountain range. This is the Ghostwood. It watches.
+ * @param {THREE.Scene} scene The scene to add the mountains to.
+ */
+export function createMountainRange(scene) {
+    const noise = createNoise2D();
+
+    // This function generates one side of the mountain range.
+    // We will call it four times to completely encircle the world.
+    function generateMountainSide(rotationY, position) {
+        const geometry = new THREE.PlaneGeometry(4000, 1200, 200, 50);
+        const material = new THREE.MeshStandardMaterial({
+            color: 0x152520, // A dark, Twin Peaks, Douglas Fir green.
+            roughness: 0.9,
+            metalness: 0.1,
+            side: THREE.FrontSide
+        });
+
+        const positions = geometry.attributes.position;
+        const vertex = new THREE.Vector3();
+
+        for (let i = 0; i < positions.count; i++) {
+            vertex.fromBufferAttribute(positions, i);
+
+            // We use multiple layers of noise (octaves) to create a more natural, complex terrain.
+            // It's a secret recipe. A little from here, a little from there.
+            const noiseScale = 800;
+            const noise1 = noise(vertex.x / noiseScale, vertex.y / noiseScale) * 0.5;
+            const noise2 = noise(vertex.x / (noiseScale * 0.3), vertex.y / (noiseScale * 0.3)) * 0.25;
+            const noise3 = noise(vertex.x / (noiseScale * 0.1), vertex.y / (noiseScale * 0.1)) * 0.125;
+            
+            const totalNoise = noise1 + noise2 + noise3;
+            
+            const height = totalNoise * 1000; // The height of the peaks.
+
+            // We apply the height to the z-axis because we will rotate the plane to be vertical.
+            positions.setZ(i, height);
+        }
+
+        geometry.computeVertexNormals(); // Recalculate normals for correct lighting.
+
+        const mountain = new THREE.Mesh(geometry, material);
+        mountain.rotation.x = -Math.PI / 2; // Lay it flat first
+        mountain.rotation.z = Math.PI;      // Flip it
+        
+        // Now position and rotate it into place.
+        mountain.rotation.y = rotationY;
+        mountain.position.copy(position);
+        
+        mountain.receiveShadow = true;
+        scene.add(mountain);
+    }
+
+    // Create the four walls of our mountain prison.
+    generateMountainSide(0, new THREE.Vector3(0, 0, -2000)); // Back
+    generateMountainSide(Math.PI, new THREE.Vector3(0, 0, 2000)); // Front
+    generateMountainSide(Math.PI / 2, new THREE.Vector3(-2000, 0, 0)); // Left
+    generateMountainSide(-Math.PI / 2, new THREE.Vector3(2000, 0, 0)); // Right
+}
+
 
 export function createCat(scene) {
     return createOriginalCat(scene);

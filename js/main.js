@@ -9,7 +9,7 @@ import {
     createLightingAndWorld, createStars, createMoon, createGasStation, 
     createSaloon, createCat, createVoidPortalAndTentacles, createTrashCans, 
     createVegetation, createWaterTower, createTelephonePoles, createEnterableCar, 
-    createGasStationSign, createFace, createBlackLodge 
+    createGasStationSign, createFace, createBlackLodge, createMountainRange
 } from './actors.js';
 import { Controls } from './controls.js';
 import { GameLoop } from './gameLoop.js';
@@ -24,6 +24,8 @@ window.onload = function() {
     createLightingAndWorld(scene);
     createStars(scene);
     createMoon(scene);
+    // The mountains rise, defining the edges of our reality.
+    createMountainRange(scene);
     createGasStation(scene);
     createCat(scene);
     createVoidPortalAndTentacles(scene);

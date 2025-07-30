@@ -13,9 +13,10 @@ import { createDoppelganger } from './actors.js';
 export function setupScene() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0a1a);
-    scene.fog = new THREE.Fog(0x0a0a1a, 100, 800);
+    // The fog is gone. The air is clear. What will you see?
+    // scene.fog = new THREE.Fog(0x0a0a1a, 150, 2500);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000); // Increased far plane for camera
     camera.position.set(-150, 4, -460);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
