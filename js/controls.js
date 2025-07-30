@@ -29,36 +29,27 @@ export class Controls {
 
     handleInteraction() {
         let closestInteractable = null;
-        // Increased interaction distance from 5 to 8
         let closestDist = 8; 
-
-        console.log("Attempting interaction..."); // A whisper to the console
 
         state.interactables.forEach(interactable => {
             const worldPosition = new THREE.Vector3();
             interactable.mesh.getWorldPosition(worldPosition);
             const dist = this.camera.position.distanceTo(worldPosition);
             
-            // Log each potential interactable that is close enough
             if (dist < closestDist) {
-                console.log(`Found interactable: ${interactable.prompt} at distance: ${dist}`);
                 closestDist = dist;
                 closestInteractable = interactable;
             }
         });
 
         if (closestInteractable) {
-            console.log(`Interacting with: ${closestInteractable.prompt}`);
             closestInteractable.onInteract();
-        } else {
-            console.log("No interactable object in range.");
         }
     }
 
     updateInteractionPrompt() {
         const prompt = document.getElementById('interaction-prompt');
         let closestInteractable = null;
-        // Increased interaction distance from 5 to 8
         let closestDist = 8;
 
         state.interactables.forEach(interactable => {
@@ -104,10 +95,25 @@ export class Controls {
             state.velocity.normalize().multiplyScalar(state.movementSpeed * delta);
             const player = this.controls.getObject();
 
+            // This function now robustly checks if an object is truly visible in the scene.
+            const isActuallyVisible = (obj) => {
+                let current = obj;
+                while (current) {
+                    if (!current.visible) return false;
+                    current = current.parent;
+                }
+                return true;
+            }
+
             const checkCollision = (nextPos) => {
                 const playerBox = new THREE.Box3().setFromCenterAndSize(nextPos, new THREE.Vector3(1, 5, 1));
                 for (const collider of state.colliders) {
-                    if (!collider.visible && state.lodgeState !== 'active') continue;
+                    // If the collider or any of its parents are not visible, we ignore it.
+                    // This correctly handles the saloon interior disappearing and the lodge appearing.
+                    if (!isActuallyVisible(collider)) {
+                        continue;
+                    }
+                    
                     const colliderBox = new THREE.Box3().setFromObject(collider);
                     if (playerBox.intersectsBox(colliderBox)) {
                         return true;

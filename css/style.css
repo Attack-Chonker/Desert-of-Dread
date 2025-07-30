@@ -33,6 +33,7 @@ canvas {
     font-family: monospace;
     font-size: 1.2em;
     pointer-events: none; /* Allows clicks to go through to the game */
+    text-shadow: 1px 1px 2px black;
 }
 
 #interaction-prompt {
@@ -45,4 +46,33 @@ canvas {
     font-size: 1.2em;
     pointer-events: none;
     display: none; /* Hidden by default */
+    text-shadow: 1px 1px 2px black;
+}
+
+/* Styling for the iconic, reversed speech of the Lodge */
+#reversed-text {
+    position: absolute;
+    bottom: 15%;
+    width: 100%;
+    text-align: center;
+    color: #ffd700; /* A sickly gold */
+    font-family: 'Libre Baskerville', serif;
+    font-style: italic;
+    font-size: 2em;
+    pointer-events: none;
+    display: none; /* Hidden by default */
+    text-shadow: 2px 2px 4px #000000;
+    animation: pulse 4s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.8;
+    }
 }

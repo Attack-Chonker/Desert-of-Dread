@@ -1,9 +1,11 @@
 // js/gameLoop.js
+// The relentless ticking of the clock. The loop that drives our reality forward, whether we want it to or not.
 
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import * as state from './state.js';
 import { playMeow, manageLodgeAudio } from './audio.js';
+import { createDoppelganger } from './actors.js';
 
 /**
  * Initializes the Three.js scene, camera, and renderer.
@@ -20,6 +22,7 @@ export function setupScene() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer, dream-like shadows.
     document.body.appendChild(renderer.domElement);
     RectAreaLightUniformsLib.init();
 
@@ -32,7 +35,6 @@ export function setupScene() {
     return { scene, camera, renderer };
 }
 
-
 export class GameLoop {
     constructor(scene, camera, renderer, controls, face) {
         this.scene = scene;
@@ -41,6 +43,9 @@ export class GameLoop {
         this.controls = controls;
         this.face = face;
         this.lodgeTransitionTimer = 0;
+        this.reversedTextEl = document.getElementById('reversed-text');
+        this.lodgeMessageTimer = 0;
+        this.currentLodgeMessage = "";
     }
 
     start() {
@@ -53,14 +58,22 @@ export class GameLoop {
             state.setLodgeState('transitioning');
             manageLodgeAudio(true); // Start the lodge audio
             
-            const jukeboxInteractable = state.interactables.find(i => i.prompt.includes('song'));
+            const jukeboxInteractable = state.interactables.find(i => i.prompt.includes('rock'));
             if (jukeboxInteractable) {
-                jukeboxInteractable.prompt = "The music has changed.";
+                jukeboxInteractable.prompt = "gniklat s'tel ,emit a evah"; // "have a time, let's talking" -> "Let's talk, have a time."
+                jukeboxInteractable.onInteract = () => {}; // The jukebox has served its purpose.
             }
 
+            // The way is open. The fireplace is no longer a barrier.
             const index = state.colliders.indexOf(state.fireplaceBacking);
             if (index > -1) {
                 state.colliders.splice(index, 1);
+            }
+
+            // Your shadow self is born.
+            if (!state.doppelganger) {
+                const ganger = createDoppelganger();
+                this.scene.add(ganger);
             }
         }
     }
@@ -70,6 +83,7 @@ export class GameLoop {
             this.lodgeTransitionTimer += delta;
             const progress = Math.min(this.lodgeTransitionTimer / 5.0, 1.0);
 
+            // The lights of the mundane world fade away.
             state.saloonLights.forEach(lightObj => {
                 lightObj.light.intensity = lightObj.initialIntensity * (1 - progress);
             });
@@ -78,6 +92,7 @@ export class GameLoop {
                 state.fireplaceBacking.material.opacity = 1.0 - progress;
             }
             
+            // The Lodge awakens.
             if (progress > 0.2 && state.blackLodge) {
                 state.blackLodge.visible = true;
                 if (state.lodgeStrobe) {
@@ -88,12 +103,43 @@ export class GameLoop {
             if (progress >= 1.0) {
                 state.setLodgeState('active');
                 if (state.saloonInterior) state.saloonInterior.visible = false;
+                if (state.doppelganger) state.doppelganger.visible = true;
+                this.reversedTextEl.style.display = 'block';
             }
         }
 
         if (state.lodgeState === 'active') {
+            // The strobe light flickers erratically.
             if (state.lodgeStrobe) {
-                state.lodgeStrobe.intensity = (Math.sin(time * 10) > 0.5) ? 50 : 0;
+                state.lodgeStrobe.intensity = (Math.sin(time * 20) + Math.sin(time * 33) > 0.8) ? 60 : 0;
+            }
+            
+            // The Man From Another Place dances.
+            if (state.manFromAnotherPlace) {
+                state.manFromAnotherPlace.position.y = Math.sin(time * 4) * 0.25;
+            }
+
+            // The world itself is unstable.
+            if (state.blackLodge) {
+                state.blackLodge.rotation.y += delta * 0.01;
+            }
+
+            // Your doppelganger watches you. It is always behind you.
+            if (state.doppelganger) {
+                const cameraDirection = new THREE.Vector3();
+                this.camera.getWorldDirection(cameraDirection);
+                const behindPosition = this.camera.position.clone().add(cameraDirection.multiplyScalar(-5));
+                state.doppelganger.position.lerp(behindPosition, 0.1);
+                state.doppelganger.lookAt(this.camera.position);
+            }
+
+            // Messages from the other side.
+            this.lodgeMessageTimer -= delta;
+            if (this.lodgeMessageTimer <= 0) {
+                const messages = ["!uoy ekil kool I", "mug yfavorite fo elpuoc a", "emoclew era uoY", "?eeffoc dna eip fo tol A"];
+                this.currentLodgeMessage = messages[Math.floor(Math.random() * messages.length)];
+                this.reversedTextEl.innerText = this.currentLodgeMessage;
+                this.lodgeMessageTimer = Math.random() * 8 + 8; // New message every 8-16 seconds.
             }
         }
     }
@@ -107,7 +153,8 @@ export class GameLoop {
         this.controls.update(delta);
         
         this.updateLodge(delta, time);
-
+        
+        // --- Cat State Machine (unchanged) ---
         const distanceToCat = state.cat ? this.camera.position.distanceTo(state.cat.position) : Infinity;
 
         switch(state.catState) {
@@ -246,13 +293,6 @@ export class GameLoop {
                 break;
         }
 
-        if (state.screenShake.duration > 0) {
-            this.camera.position.x += (Math.random() - 0.5) * state.screenShake.intensity;
-            this.camera.position.y += (Math.random() - 0.5) * state.screenShake.intensity;
-            state.screenShake.duration -= delta;
-        } else {
-            state.screenShake.intensity = 0;
-        }
 
         state.flickeringLights.forEach(light => {
             if (Math.random() > 0.9) {
@@ -268,29 +308,6 @@ export class GameLoop {
         });
 
         state.doors.forEach(door => door.update(delta));
-
-        if (state.ghostState === 'hidden') {
-            if (this.controls.isLocked && time > state.nextGhostAppearance) {
-                state.setGhostState('visible');
-                state.setGhostTimer(Math.random() * 1.0 + 0.3);
-                this.camera.getWorldDirection(state.direction);
-                const distanceBehind = Math.random() * 15 + 20;
-                const appearPosition = this.camera.position.clone().sub(state.direction.multiplyScalar(distanceBehind));
-                appearPosition.y = this.camera.position.y + (Math.random() - 0.5) * 4;
-                this.face.position.copy(appearPosition);
-                this.face.lookAt(this.camera.position);
-                this.face.visible = true;
-            }
-        } else if (state.ghostState === 'visible') {
-            state.setGhostTimer(state.ghostTimer - delta);
-            if (state.ghostTimer <= 0) {
-                state.setGhostState('hidden');
-                this.face.visible = false;
-                state.setNextGhostAppearance(time + Math.random() * 20 + 10);
-            } else {
-                this.face.lookAt(this.camera.position);
-            }
-        }
 
         this.renderer.render(this.scene, this.camera);
     }

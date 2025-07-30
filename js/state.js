@@ -1,4 +1,5 @@
 // js/state.js
+// This is the collective unconscious of our world. Every secret, every fear, every variable is stored here.
 
 import * as THREE from 'three';
 
@@ -13,8 +14,6 @@ export const lodgeAudioNodes = {};
 
 // Scene objects and materials
 export let flickeringLights = [];
-export let fireMaterial;
-export let emberMaterial;
 export const interactables = [];
 export const doors = [];
 export const colliders = [];
@@ -27,6 +26,8 @@ export let tentacles = [];
 export let lodgeState = 'inactive'; // 'inactive', 'transitioning', 'active'
 export let saloonInterior, blackLodge, lodgeStrobe, fireplaceBacking;
 export let saloonLights = [];
+// We must keep track of the inhabitants of the Lodge.
+export let manFromAnotherPlace, lodgeStatue, doppelganger;
 
 
 // Game State
@@ -45,10 +46,9 @@ export const direction = new THREE.Vector3();
 export const clock = new THREE.Clock();
 
 // --- Setters for State ---
+// These functions are the gatekeepers, allowing us to modify the state of the world.
 export function setAudioContext(context) { audioContext = context; }
 export function setRumbleNode(node) { rumbleNode = node; }
-export function setFireMaterial(material) { fireMaterial = material; }
-export function setEmberMaterial(material) { emberMaterial = material; }
 export function setCat(newCat) { cat = newCat; }
 export function setVoidPortal(newVoidPortal) { voidPortal = newVoidPortal; }
 export function setVoidLight(newVoidLight) { voidLight = newVoidLight; }
@@ -72,3 +72,6 @@ export function setSaloonInterior(group) { saloonInterior = group; }
 export function setBlackLodge(group) { blackLodge = group; }
 export function setLodgeStrobe(light) { lodgeStrobe = light; }
 export function setFireplaceBacking(mesh) { fireplaceBacking = mesh; }
+export function setManFromAnotherPlace(man) { manFromAnotherPlace = man; }
+export function setLodgeStatue(statue) { lodgeStatue = statue; }
+export function setDoppelganger(ganger) { doppelganger = ganger; }
