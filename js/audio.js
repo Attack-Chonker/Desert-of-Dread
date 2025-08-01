@@ -1,7 +1,7 @@
 // js/audio.js
 // The soundscape of our world. From the whisper of the wind to the oppressive hum of the Lodge.
 
-import { audioContext, setAudioContext, setRumbleNode, mainAudioNodes, lodgeAudioNodes, redRoomAudioNodes } from './state.js';
+import { audioContext, setAudioContext, setRumbleNode, mainAudioNodes, lodgeAudioNodes, redRoomAudioNodes, casinoAudioNodes } from './state.js';
  
  export function playMeow() {
     if (!audioContext) return;
@@ -416,4 +416,68 @@ export function playMDTOvercharge() {
     humGain.gain.linearRampToValueAtTime(0, now + 2.0); // Fades out over the overcharge duration
     hum.start(now);
     hum.stop(now + 2.0);
+}
+
+export function manageCasinoAudio(start) {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const fadeDuration = 3.0;
+
+    if (start) {
+        // Slow, discordant jazz
+        const jazz = audioContext.createOscillator();
+        jazz.type = 'sine';
+        jazz.frequency.setValueAtTime(100, now);
+        const jazzGain = audioContext.createGain();
+        jazzGain.gain.setValueAtTime(0, now);
+        jazzGain.gain.linearRampToValueAtTime(0.05, now + fadeDuration);
+        jazz.connect(jazzGain);
+        jazzGain.connect(audioContext.destination);
+        jazz.start(now);
+
+        // Faulty ventilation hum
+        const hum = audioContext.createOscillator();
+        hum.type = 'sine';
+        hum.frequency.setValueAtTime(60, now);
+        const humGain = audioContext.createGain();
+        humGain.gain.setValueAtTime(0, now);
+        humGain.gain.linearRampToValueAtTime(0.1, now + fadeDuration);
+        hum.connect(humGain);
+        humGain.connect(audioContext.destination);
+        hum.start(now);
+
+        casinoAudioNodes.jazz = jazz;
+        casinoAudioNodes.jazzGain = jazzGain;
+        casinoAudioNodes.hum = hum;
+        casinoAudioNodes.humGain = humGain;
+    } else {
+        if (casinoAudioNodes.jazzGain) {
+            casinoAudioNodes.jazzGain.gain.cancelScheduledValues(now);
+            casinoAudioNodes.jazzGain.gain.linearRampToValueAtTime(0, now + fadeDuration);
+            casinoAudioNodes.jazz.stop(now + fadeDuration);
+        }
+        if (casinoAudioNodes.humGain) {
+            casinoAudioNodes.humGain.gain.cancelScheduledValues(now);
+            casinoAudioNodes.humGain.gain.linearRampToValueAtTime(0, now + fadeDuration);
+            casinoAudioNodes.hum.stop(now + fadeDuration);
+        }
+    }
+}
+
+export function playSlotMachineSpin() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 2.0);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.0);
+
+    osc.start(now);
+    osc.stop(now + 2.0);
 }

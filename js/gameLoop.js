@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import * as state from './state.js';
-import { playMeow, manageLodgeAudio, manageRedRoomAudio } from './audio.js';
+import { playMeow, manageLodgeAudio, manageRedRoomAudio, manageCasinoAudio, playSlotMachineSpin } from './audio.js';
 import { createDoppelganger } from './actors.js';
  
  export class GameLoop {
@@ -317,6 +317,7 @@ import { createDoppelganger } from './actors.js';
          // Update major game sequences
          this.updateLodge(delta, time);
          this.updateRedRoom(delta, time);
+         this.updateCasino(delta, time);
          
          // Update individual systems and actors
          this._updateCatStateMachine(delta, time);
@@ -625,5 +626,65 @@ import { createDoppelganger } from './actors.js';
         mdt.isOn = false;
         mdt.light.visible = false;
         mdt.light.intensity = 0;
+    }
+ 
+    // Manages all logic related to the Velvet Hand Casino sequence.
+    updateCasino(delta, time) {
+        switch (state.casinoState) {
+            case 'active':
+                // Logic for when the player is in the casino
+                break;
+            case 'jackpot':
+                this._updateCasinoJackpot(delta, time);
+                break;
+            case 'woodsman':
+                this._updateCasinoWoodsman(delta, time);
+                break;
+        }
+    }
+
+    _updateCasinoJackpot(delta, time) {
+       manageCasinoAudio(false); // Silence
+       console.log("The air grows cold. A single, scorched cigarette butt is dispensed.");
+       if (state.slotMachine && state.slotMachine.userData.cigaretteButt) {
+           state.slotMachine.userData.cigaretteButt.visible = true;
+       }
+       state.setCasinoState('woodsman');
+    }
+
+    _updateCasinoWoodsman(delta, time) {
+       if (!state.woodsman) {
+           return;
+       }
+
+       if (state.casinoState === 'woodsman' && !state.woodsman.visible) {
+           state.woodsman.visible = true;
+           // Make sure the interior is visible too
+           if (state.velvetHandCasino) {
+               const interior = state.velvetHandCasino.children.find(child => child.name === 'interior');
+               if (interior) {
+                   interior.visible = true;
+               }
+           }
+       }
+
+       // Stop-motion movement
+       if (Math.random() < 0.1) {
+           const cameraDirection = new THREE.Vector3();
+           this.camera.getWorldDirection(cameraDirection);
+           const behindPosition = this.camera.position.clone().add(cameraDirection.multiplyScalar(-8));
+           state.woodsman.position.copy(behindPosition);
+           state.woodsman.lookAt(this.camera.position);
+       }
+
+       // Flickering lights and dialogue
+       if (Math.random() < 0.05) {
+           console.log("Got a light?");
+           state.velvetHandCasino.children.forEach(child => {
+               if (child.isPointLight) {
+                   child.intensity = Math.random() * 2;
+               }
+           });
+       }
     }
 }

@@ -50,7 +50,7 @@ export function createZigZagFloorTexture() {
     return texture;
 }
 
-export function createCurtainTexture(isRed = false) {
+export function createVelvetCurtainTexture(isRed = false) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 128; canvas.height = 1; // We only need a 1px high texture to repeat vertically.
@@ -82,6 +82,42 @@ export function createCurtainTexture(isRed = false) {
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(50, 20); // Repeat many times to create the folds.
+    return texture;
+}
+
+export function createChevronFloorTexture() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 512;
+    canvas.height = 512;
+
+    const black = '#000000';
+    const white = '#ffffff';
+
+    ctx.fillStyle = black;
+    ctx.fillRect(0, 0, 512, 512);
+
+    ctx.strokeStyle = white;
+    ctx.lineWidth = 40;
+    ctx.beginPath();
+    for (let i = -1; i < 14; i++) {
+        ctx.moveTo(i * 40, -10);
+        ctx.lineTo((i + 0.5) * 40, 30);
+        ctx.lineTo((i + 1) * 40, -10);
+    }
+    for (let j = 0; j < 13; j++) {
+        for (let i = -1; i < 14; i++) {
+            ctx.moveTo(i * 40, j * 40 + 30);
+            ctx.lineTo((i + 0.5) * 40, j * 40 + 70);
+            ctx.lineTo((i + 1) * 40, j * 40 + 30);
+        }
+    }
+    ctx.stroke();
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(8, 8);
     return texture;
 }
 
@@ -198,5 +234,34 @@ export function createPlayingCardTexture(rank, suit) {
     ctx.textAlign = 'center';
     ctx.fillText(rank, 32, 40);
     ctx.fillText(suit, 32, 70);
+    return new THREE.CanvasTexture(canvas);
+}
+
+export function createSlotMachineTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    // Cherry
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(64, 64, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'green';
+    ctx.fillRect(60, 20, 8, 20);
+
+    // Bell
+    ctx.fillStyle = 'gold';
+    ctx.fillRect(128, 40, 64, 64);
+    ctx.fillStyle = 'saddlebrown';
+    ctx.fillRect(152, 104, 16, 16);
+
+    // BAR
+    ctx.fillStyle = 'black';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('BAR', 224, 80);
+
     return new THREE.CanvasTexture(canvas);
 }

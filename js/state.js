@@ -11,6 +11,7 @@ export let rumbleNode;
 export const mainAudioNodes = {};
 export const lodgeAudioNodes = {};
 export const redRoomAudioNodes = {};
+export const casinoAudioNodes = {};
 
 
 // Scene objects and materials
@@ -38,6 +39,13 @@ export let canExitLodge = false; // Player cannot exit the lodge initially.
 export let lodgeMan, lodgeStatue, doppelganger, lauraDoppelganger;
 export let redRoomMan;
 
+// Velvet Hand Casino state
+export let velvetHandCasino;
+export let casinoState = 'inactive'; // 'inactive', 'active', 'jackpot', 'woodsman'
+export let woodsman;
+export let slotMachine;
+export let hasCigaretteButt = false;
+
 
 // Game State
 export let catState = 'idle';
@@ -64,6 +72,7 @@ export let movementSpeed = 50;
 export const velocity = new THREE.Vector3();
 export const direction = new THREE.Vector3();
 export const clock = new THREE.Clock();
+export let playerHasLighter = true; // For testing the Woodsman interaction
 
 // --- Setters for State ---
 // These functions are the gatekeepers, allowing us to modify the state of the world.
@@ -101,6 +110,13 @@ export function setLodgeStatue(statue) { lodgeStatue = statue; }
 export function setDoppelganger(ganger) { doppelganger = ganger; }
 export function setLauraDoppelganger(laura) { lauraDoppelganger = laura; }
 export function setCanExitLodge(value) { canExitLodge = value; }
+
+// Velvet Hand Casino Setters
+export function setVelvetHandCasino(casino) { velvetHandCasino = casino; }
+export function setCasinoState(newState) { casinoState = newState; }
+export function setWoodsman(newWoodsman) { woodsman = newWoodsman; }
+export function setSlotMachine(newSlotMachine) { slotMachine = newSlotMachine; }
+export function setHasCigaretteButt(value) { hasCigaretteButt = value; }
 
 // Red Room Setters
 export function setRedRoomState(newState) { redRoomState = newState; }

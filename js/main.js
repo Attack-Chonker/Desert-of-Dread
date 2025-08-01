@@ -9,7 +9,8 @@ import {
     createLightingAndWorld, createStars, createMoon, createGasStation,
     createRoadhouse, createCat, createVoidPortalAndTentacles, createTrashCans,
     createGhostwood, createWaterTower, createTelephonePoles, createEnterableCar,
-    createGasStationSign, createFace, createBlackLodge, createMountainRange, createDoubleRDiner, createRedRoom, createRocket
+    createGasStationSign, createFace, createBlackLodge, createMountainRange, createDoubleRDiner, createRedRoom, createRocket,
+    createVelvetHandCasino
 } from './actors.js';
 import { Controls } from './controls.js';
 import { GameLoop } from './gameLoop.js';
@@ -58,6 +59,7 @@ window.onload = function() {
             createBlackLodge(roadhouse, gameLoop);
             // The Red Room is created but remains hidden, waiting for its cue.
             createRedRoom(scene);
+            createVelvetHandCasino(scene, gameLoop, font);
  
              // --- 5. Finalize Colliders ---
             console.log('A place both wonderful and strange. Finalizing setup...');

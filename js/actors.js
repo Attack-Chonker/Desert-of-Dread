@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { createNoise2D } from 'simplex-noise';
 import { Door } from './Door.js';
-import { createZigZagFloorTexture, createCurtainTexture, createBrickTexture } from './textures.js';
+import { createZigZagFloorTexture, createVelvetCurtainTexture, createBrickTexture } from './textures.js';
+import { createVelvetHandCasino } from './VelvetHandCasino.js';
 import { playMeow } from './audio.js';
 import {
     colliders, doors, flickeringLights, setMoonLight, setMoon, setCat,
@@ -17,7 +18,7 @@ import {
 } from './state.js';
 import { createCat as createOriginalCat, createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace } from './actors-original.js';
 
-export { createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace };
+export { createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace, createVelvetHandCasino };
 
 
 // --- WORLD CREATION ---
@@ -962,7 +963,7 @@ export function createBlackLodge(roadhouse, game) {
     floor.receiveShadow = true;
     lodgeGroup.add(floor);
 
-    const redCurtainTexture = createCurtainTexture(true);
+    const redCurtainTexture = createVelvetCurtainTexture(true);
     const curtainMaterial = new THREE.MeshStandardMaterial({
         map: redCurtainTexture,
         side: THREE.DoubleSide,
@@ -1045,7 +1046,7 @@ export function createRedRoom(scene) {
     redRoomGroup.add(floor);
 
     // Curtains
-    const redCurtainTexture = createCurtainTexture(true);
+    const redCurtainTexture = createVelvetCurtainTexture(true);
     const curtainMaterial = new THREE.MeshStandardMaterial({
         map: redCurtainTexture,
         side: THREE.DoubleSide,
