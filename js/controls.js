@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import * as state from './state.js';
-import { initAudio } from './audio.js';
+import { initAudio, playFlashlightClick } from './audio.js';
 
 export class Controls {
     constructor(camera, domElement) {
@@ -20,14 +20,28 @@ export class Controls {
             if (event.code === 'KeyE' && this.controls.isLocked) {
                 this.handleInteraction();
             }
+            if (event.code === 'KeyF' && this.controls.isLocked) {
+                this.toggleFlashlight();
+            }
         });
 
         document.addEventListener('keyup', (event) => {
             state.keys[event.code] = false;
         });
+
+        domElement.addEventListener('mousedown', (event) => {
+        });
     }
 
-    handleInteraction() {
+    getObject() {
+        return this.controls.getObject();
+    }
+
+    teleport(position) {
+        this.controls.getObject().position.copy(position);
+    }
+ 
+     handleInteraction() {
         let closestInteractable = null;
         let closestDist = 8; 
 
@@ -70,6 +84,14 @@ export class Controls {
         }
     }
 
+    toggleFlashlight() {
+        const flashlight = this.camera.children.find(child => child.isSpotLight);
+        if (flashlight) {
+            flashlight.visible = !flashlight.visible;
+            playFlashlightClick();
+        }
+    }
+
     update(delta) {
         if (this.controls.isLocked) {
             this.updateMovement(delta);
@@ -78,6 +100,10 @@ export class Controls {
     }
 
     updateMovement(delta) {
+        if (state.isPlayerInRocket) {
+            state.velocity.set(0, 0, 0);
+            return;
+        }
         state.velocity.set(0, 0, 0);
         const direction = new THREE.Vector3();
         this.controls.getDirection(direction);

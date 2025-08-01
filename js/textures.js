@@ -7,41 +7,38 @@ import * as THREE from 'three';
 // I have perfected the textures for the Lodge.
 
 export function createZigZagFloorTexture() {
-    // This is no longer a simple black and white. This is the true floor.
-    // A chevron pattern of brown and off-white.
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
-    const brown = '#654321'; // A rich, woody brown
-    const cream = '#f5e6d3'; // A pale, creamy off-white
-    
-    canvas.width = 128;
-    canvas.height = 128;
-    
-    ctx.fillStyle = cream;
-    ctx.fillRect(0, 0, 128, 128);
-    
-    ctx.fillStyle = brown;
-    const tileWidth = 32;
-    const tileHeight = 32;
+    canvas.width = 512;
+    canvas.height = 512;
 
-    for (let i = 0; i < canvas.width / tileWidth; i++) {
-        for (let j = 0; j < canvas.height / tileHeight; j++) {
-            ctx.beginPath();
-            ctx.moveTo(i * tileWidth, j * tileHeight);
-            ctx.lineTo(i * tileWidth + tileWidth / 2, j * tileHeight + tileHeight / 2);
-            ctx.lineTo(i * tileWidth + tileWidth, j * tileHeight);
-            ctx.lineTo(i * tileWidth + tileWidth, j * tileHeight + tileHeight / 2);
-            ctx.lineTo(i * tileWidth + tileWidth / 2, j * tileHeight + tileHeight);
-            ctx.lineTo(i * tileWidth, j * tileHeight + tileHeight / 2);
-            ctx.closePath();
-            ctx.fill();
+    const brown = '#4d2c1a';
+    const cream = '#e0dacd';
+
+    ctx.fillStyle = brown;
+    ctx.fillRect(0, 0, 512, 512);
+
+    ctx.strokeStyle = cream;
+    ctx.lineWidth = 40;
+    ctx.beginPath();
+    for (let i = -1; i < 14; i++) {
+        ctx.moveTo(i * 40, -10);
+        ctx.lineTo((i + 0.5) * 40, 30);
+        ctx.lineTo((i + 1) * 40, -10);
+    }
+    for (let j = 0; j < 13; j++) {
+        for (let i = -1; i < 14; i++) {
+            ctx.moveTo(i * 40, j * 40 + 30);
+            ctx.lineTo((i + 0.5) * 40, j * 40 + 70);
+            ctx.lineTo((i + 1) * 40, j * 40 + 30);
         }
     }
+    ctx.stroke();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(16, 16);
+    texture.repeat.set(8, 8);
     return texture;
 }
 
@@ -53,13 +50,13 @@ export function createCurtainTexture(isRed = false) {
 
     if (isRed) {
         // A deep, vibrant, velvet red. The color of blood and secrets.
-        gradient.addColorStop(0,    '#610000'); // Deep shadow
-        gradient.addColorStop(0.2,  '#950000'); // Mid-tone
-        gradient.addColorStop(0.35, '#c1121f'); // Highlight
-        gradient.addColorStop(0.5,  '#a00000'); // Mid-tone
-        gradient.addColorStop(0.7,  '#610000'); // Deep shadow
-        gradient.addColorStop(0.85, '#950000'); // Mid-tone
-        gradient.addColorStop(1,    '#500000'); // Darkest edge
+        gradient.addColorStop(0,    '#400000');
+        gradient.addColorStop(0.2,  '#8b0000');
+        gradient.addColorStop(0.35, '#c1121f');
+        gradient.addColorStop(0.5,  '#a00000');
+        gradient.addColorStop(0.7,  '#610000');
+        gradient.addColorStop(0.85, '#950000');
+        gradient.addColorStop(1,    '#500000');
     } else {
         // Original darker, browner color for other uses if needed.
         gradient.addColorStop(0, '#2c0001');
