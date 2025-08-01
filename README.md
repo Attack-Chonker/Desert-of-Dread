@@ -22,12 +22,12 @@ This is the recommended method for most users. We'll use the popular "Live Serve
 
 1.  **Open the Project:** Open the entire project folder in your code editor (e.g., Cursor or VS Code).
 2.  **Install the Extension:**
-    * Go to the Extensions view (usually an icon with squares on the left sidebar).
-    * Search for `Live Server` by **Ritwick Dey**.
-    * Click "Install". You only need to do this once.
+    *   Go to the Extensions view (usually an icon with squares on the left sidebar).
+    *   Search for `Live Server` by **Ritwick Dey**.
+    *   Click "Install". You only need to do this once.
 3.  **Go Live:** After the extension is installed, you have two options:
-    * **Option A:** In the file explorer, right-click on the `index.html` file and select **"Open with Live Server"**.
-    * **Option B:** Look in the bottom-right corner of your editor's window for a blue status bar. Click the **"Go Live"** button.
+    *   **Option A:** In the file explorer, right-click on the `index.html` file and select **"Open with Live Server"**.
+    *   **Option B:** Look in the bottom-right corner of your editor's window for a blue status bar. Click the **"Go Live"** button.
 
 Your default browser will automatically open with the game running.
 
@@ -56,12 +56,15 @@ Your browser will automatically open, and the experience will begin.
 
 ## Controls
 
-* **Look:** Move the mouse.
-* **Move:** `W`, `A`, `S`, `D` keys.
-* **Interact:** `E` key.
-* **Start / Lock Mouse:** Click anywhere on the screen.
+*   **Look:** Move the mouse.
+*   **Move:** `W`, `A`, `S`, `D` keys.
+*   **Interact:** `E` key.
+*   **Flashlight:** `F` key.
+*   **Start / Lock Mouse:** Click anywhere on the screen.
 
-## The Secret
+## Hints
 
-*Sometimes, a song is more than a song. Sometimes, it's an invitation.*
-
+*   Not everything is as it seems. Explore the buildings.
+*   Some objects respond to interaction. If you see a prompt, press 'E'.
+*   The cat is more than just a cat. Pay attention to it.
+*   Sometimes, a song is the key.

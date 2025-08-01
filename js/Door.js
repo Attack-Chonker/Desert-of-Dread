@@ -49,12 +49,13 @@ export class Door {
         
         this.isAnimating = false;
         this.targetRotation = 0;
+        this.isLocked = false;
         
         this.interactable = {
             mesh: this.doorGroup,
             prompt: 'Press E to open',
             onInteract: () => {
-                if (this.isAnimating) return;
+                if (this.isAnimating || this.isLocked) return;
                 const isOpen = this.doorGroup.rotation.y !== 0;
                 this.targetRotation = isOpen ? 0 : Math.PI / 1.8 * (isLeft ? 1 : -1);
                 this.isAnimating = true;
@@ -68,6 +69,11 @@ export class Door {
 
     addToScene(parent) {
         parent.add(this.doorGroup);
+    }
+
+    setLocked(locked) {
+        this.isLocked = locked;
+        this.interactable.prompt = locked ? 'The door is locked.' : 'Press E to open';
     }
 
     update(delta) {

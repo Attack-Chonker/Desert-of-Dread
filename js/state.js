@@ -10,6 +10,7 @@ export let audioContext;
 export let rumbleNode;
 export const mainAudioNodes = {};
 export const lodgeAudioNodes = {};
+export const redRoomAudioNodes = {};
 
 
 // Scene objects and materials
@@ -23,11 +24,19 @@ export let cat, voidPortal, voidLight, catHead, moon, catMoon, moonLight, catMoo
 export let tentacles = [];
 
 // Twin Peaks / Black Lodge state
+export let rocket;
+export let isPlayerInRocket = false;
+export let isRocketRideActive = false;
 export let lodgeState = 'inactive'; // 'inactive', 'transitioning', 'active'
-export let saloonInterior, blackLodge, lodgeStrobe, fireplaceBacking;
-export let saloonLights = [];
+export let redRoomState = 'inactive'; // 'inactive', 'transitioning', 'active', 'exiting'
+export let roadhouseInterior, blackLodge, lodgeStrobe, fireplaceBacking;
+export let roadhouseLights = [];
+export let jukebox, redRoom;
+export let hasOwlCaveCoin = false; // Player starts without the coin.
+export let canExitLodge = false; // Player cannot exit the lodge initially.
 // We must keep track of the inhabitants of the Lodge.
-export let manFromAnotherPlace, lodgeStatue, doppelganger;
+export let lodgeMan, lodgeStatue, doppelganger, lauraDoppelganger;
+export let redRoomMan;
 
 
 // Game State
@@ -37,10 +46,21 @@ export let ghostState = 'hidden';
 export let ghostTimer = 0;
 export let nextGhostAppearance = 15.0;
 export let screenShake = { intensity: 0, duration: 0 };
+export let mdt = {
+    light: null,
+    isOn: false,
+    powerCell: 100, // Percentage
+    mode: 'illumination', // 'illumination' or 'diagnostic'
+    baseIntensity: 1.0,
+    beamColor: new THREE.Color(0xffffff), // Pure white
+    isOvercharging: false,
+    overchargeTimer: 0
+};
+
 
 // Player Movement
 export const keys = {};
-export const movementSpeed = 50;
+export let movementSpeed = 50;
 export const velocity = new THREE.Vector3();
 export const direction = new THREE.Vector3();
 export const clock = new THREE.Clock();
@@ -66,12 +86,26 @@ export function setScreenShake(newScreenShake) { screenShake = newScreenShake; }
 export function addTentacle(tentacle) { tentacles.push(tentacle); }
 export function getTentacles() { return tentacles; }
 
-// Lodge Setters
+export function setRocket(newRocket) { rocket = newRocket; }
+export function setIsPlayerInRocket(value) { isPlayerInRocket = value; }
+export function setIsRocketRideActive(value) { isRocketRideActive = value; }
+ 
+ // Lodge Setters
 export function setLodgeState(newState) { lodgeState = newState; }
-export function setSaloonInterior(group) { saloonInterior = group; }
+export function setRoadhouseInterior(group) { roadhouseInterior = group; }
 export function setBlackLodge(group) { blackLodge = group; }
 export function setLodgeStrobe(light) { lodgeStrobe = light; }
 export function setFireplaceBacking(mesh) { fireplaceBacking = mesh; }
-export function setManFromAnotherPlace(man) { manFromAnotherPlace = man; }
+export function setLodgeMan(man) { lodgeMan = man; }
 export function setLodgeStatue(statue) { lodgeStatue = statue; }
 export function setDoppelganger(ganger) { doppelganger = ganger; }
+export function setLauraDoppelganger(laura) { lauraDoppelganger = laura; }
+export function setCanExitLodge(value) { canExitLodge = value; }
+
+// Red Room Setters
+export function setRedRoomState(newState) { redRoomState = newState; }
+export function setJukebox(juke) { jukebox = juke; }
+export function setRedRoom(room) { redRoom = room; }
+export function setHasOwlCaveCoin(value) { hasOwlCaveCoin = value; }
+export function setMovementSpeed(speed) { movementSpeed = speed; }
+export function setRedRoomMan(man) { redRoomMan = man; }
