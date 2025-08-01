@@ -23,9 +23,11 @@ export { createVoidPortalAndTentacles, createTrashCans, createWaterTower, create
 // --- WORLD CREATION ---
 
 export function createLightingAndWorld(scene) {
-    const ambientLight = new THREE.AmbientLight(0x404050, 0.2);
+    // Reduced ambient light to create deeper, more oppressive shadows.
+    const ambientLight = new THREE.AmbientLight(0x303040, 0.15);
     scene.add(ambientLight);
-    const newMoonLight = new THREE.DirectionalLight(0x8a95a1, 0.6);
+    // Moonlight is now colder and less intense, making the world feel starker and emptier.
+    const newMoonLight = new THREE.DirectionalLight(0xddeeff, 0.4);
     newMoonLight.position.set(100, 200, 100);
     newMoonLight.castShadow = true;
     newMoonLight.shadow.mapSize.width = 2048;
@@ -33,7 +35,8 @@ export function createLightingAndWorld(scene) {
     scene.add(newMoonLight);
     setMoonLight(newMoonLight);
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x6b5a42 }));
+    // A darker, more desaturated ground color to match the new mood. High roughness reduces unnatural highlights.
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x4a423b, roughness: 0.9 }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
@@ -236,11 +239,12 @@ export function createGasStation(scene, font) {
     });
 
     // A new aesthetic. One of time, dust, and secrets.
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xf5f5dc, roughness: 0.9, metalness: 0.1 }); // Faded beige paint
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x5a5a5a, roughness: 0.9 }); // Worn concrete
-    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.95, metalness: 0.3 }); // Rusty metal
-    const redTrimMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.8 }); // Faded, dark red
-    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaeb5, transparent: true, opacity: 0.4, roughness: 0.6 }); // Dirty glass
+    // A new aesthetic. One of time, dust, and secrets. Colors are desaturated and weathered.
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xd8d4c7, roughness: 0.95, metalness: 0.05 }); // Dusty, off-white paint
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9 }); // Dark, worn concrete
+    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x6b4b3a, roughness: 0.95, metalness: 0.2 }); // Faded, rusty metal
+    const redTrimMaterial = new THREE.MeshStandardMaterial({ color: 0x7a2a2a, roughness: 0.85 }); // Sun-bleached, dark red
+    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaeb5, transparent: true, opacity: 0.2, roughness: 0.8 }); // Very dirty glass
 
     // --- Main Building ---
     const buildingWidth = 40, buildingDepth = 25, buildingHeight = 10, wallThickness = 0.5;
@@ -555,11 +559,12 @@ export function createRoadhouse(scene, font, game) {
     roadhouse.add(roadhouseInterior);
     setRoadhouseInterior(roadhouseInterior);
 
-    const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x3d2c1a, roughness: 0.8 });
-    const darkWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x241a0f, roughness: 0.9 });
+    // Wood materials are now more weathered and desaturated.
+    const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x4a3d30, roughness: 0.85 });
+    const darkWoodMaterial = new THREE.MeshStandardMaterial({ color: 0x2a221b, roughness: 0.9 });
     const stoneMaterial = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.9 });
     const exteriorMaterial = darkWoodMaterial;
-    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x9a7142, roughness: 0.8 });
+    const doorMaterial = new THREE.MeshStandardMaterial({ color: 0x7a5d42, roughness: 0.8 });
 
     const buildingWidth = 40, buildingDepth = 30, buildingHeight = 12, wallThickness = 0.5;
 
@@ -714,10 +719,11 @@ export function createDoubleRDiner(scene, font, game) {
         }
     });
 
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
-    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000, roughness: 0.8 });
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.9 });
-    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaeb5, transparent: true, opacity: 0.6, roughness: 0.4 });
+    // Diner materials are now more worn and less pristine.
+    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.85 }); // Off-white
+    const roofMaterial = new THREE.MeshStandardMaterial({ color: 0x9a3d3d, roughness: 0.8 }); // Faded red
+    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 }); // Worn grey tiles
+    const glassMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaeb5, transparent: true, opacity: 0.3, roughness: 0.7 }); // Dirty glass
 
     const buildingWidth = 30, buildingDepth = 40, buildingHeight = 10;
 
@@ -956,7 +962,7 @@ export function createBlackLodge(roadhouse, game) {
     floor.receiveShadow = true;
     lodgeGroup.add(floor);
 
-    const redCurtainTexture = createCurtainTexture();
+    const redCurtainTexture = createCurtainTexture(true);
     const curtainMaterial = new THREE.MeshStandardMaterial({
         map: redCurtainTexture,
         side: THREE.DoubleSide,
@@ -1039,7 +1045,7 @@ export function createRedRoom(scene) {
     redRoomGroup.add(floor);
 
     // Curtains
-    const redCurtainTexture = createCurtainTexture();
+    const redCurtainTexture = createCurtainTexture(true);
     const curtainMaterial = new THREE.MeshStandardMaterial({
         map: redCurtainTexture,
         side: THREE.DoubleSide,
