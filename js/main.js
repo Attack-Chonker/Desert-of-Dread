@@ -4,12 +4,13 @@
 import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 
-import { setupScene } from './gameLoop.js';
-import { 
-    createLightingAndWorld, createStars, createMoon, createGasStation, 
-    createSaloon, createCat, createVoidPortalAndTentacles, createTrashCans, 
-    createVegetation, createWaterTower, createTelephonePoles, createEnterableCar, 
-    createGasStationSign, createFace, createBlackLodge, createMountainRange
+import { setupScene } from './scene.js';
+import {
+    createLightingAndWorld, createStars, createMoon, createGasStation,
+    createRoadhouse, createCat, createVoidPortalAndTentacles, createTrashCans,
+    createGhostwood, createWaterTower, createTelephonePoles, createEnterableCar,
+    createGasStationSign, createFace, createBlackLodge, createMountainRange, createDoubleRDiner, createRedRoom, createRocket,
+    createVelvetHandCasino
 } from './actors.js';
 import { Controls } from './controls.js';
 import { GameLoop } from './gameLoop.js';
@@ -26,11 +27,11 @@ window.onload = function() {
     createMoon(scene);
     // The mountains rise, defining the edges of our reality.
     createMountainRange(scene);
-    createGasStation(scene);
     createCat(scene);
     createVoidPortalAndTentacles(scene);
     createTrashCans(scene);
-    createVegetation(scene);
+    createGhostwood(scene);
+    createRocket(scene);
     const face = createFace(scene);
     createWaterTower(scene);
     createTelephonePoles(scene);
@@ -45,17 +46,22 @@ window.onload = function() {
     // and the tavern is the key to the Lodge itself.
     const loader = new FontLoader();
     loader.load(
-        'https://cdn.jsdelivr.net/npm/three@0.165.0/examples/fonts/helvetiker_bold.typeface.json', 
+        './fonts/helvetiker_bold.typeface.json',
         
         // --- OnLoad Callback ---
         function (font) {
             // Create actors that depend on the loaded font
-            const saloon = createSaloon(scene, font, gameLoop);
+            const roadhouse = createRoadhouse(scene, font, gameLoop);
             createGasStationSign(scene, font);
+            createDoubleRDiner(scene, font, gameLoop);
+            createGasStation(scene, font);
             // Create the hidden Black Lodge area within the saloon. It sleeps, waiting.
-            createBlackLodge(saloon);
-
-            // --- 5. Finalize Colliders and Start the Game ---
+            createBlackLodge(roadhouse, gameLoop);
+            // The Red Room is created but remains hidden, waiting for its cue.
+            createRedRoom(scene);
+            createVelvetHandCasino(scene, gameLoop, font);
+ 
+             // --- 5. Finalize Colliders ---
             console.log('A place both wonderful and strange. Finalizing setup...');
             
             state.colliders.forEach(c => {
@@ -70,9 +76,6 @@ window.onload = function() {
                     });
                 }
             });
-
-            console.log('The owls are not what they seem.');
-            gameLoop.start();
         },
 
         // --- OnError Callback ---
@@ -80,4 +83,7 @@ window.onload = function() {
             console.error('The thread is broken. The font could not be found.', err);
         }
     );
+
+    console.log('The owls are not what they seem.');
+    gameLoop.start();
 };
