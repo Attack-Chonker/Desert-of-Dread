@@ -631,6 +631,9 @@ import { createDoppelganger } from './actors.js';
     // Manages all logic related to the Velvet Hand Casino sequence.
     updateCasino(delta, time) {
         switch (state.casinoState) {
+            case 'inactive':
+                // Do nothing
+                break;
             case 'active':
                 // Logic for when the player is in the casino
                 break;

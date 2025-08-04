@@ -481,3 +481,64 @@ export function playSlotMachineSpin() {
     osc.start(now);
     osc.stop(now + 2.0);
 }
+
+export function playBlackjackCardSound() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(800, now);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+
+    osc.start(now);
+    osc.stop(now + 0.2);
+}
+
+export function playRouletteWheelSpinSound() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    
+    // Clicking sound
+    const bufferSize = audioContext.sampleRate * 0.1;
+    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+    }
+    const whiteNoise = audioContext.createBufferSource();
+    whiteNoise.buffer = noiseBuffer;
+    whiteNoise.loop = true;
+    
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 3000;
+    filter.Q.value = 50;
+
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+
+    whiteNoise.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioContext.destination);
+    whiteNoise.start(now);
+    whiteNoise.stop(now + 3.0);
+
+    // Wet rolling sound
+    const wetOsc = audioContext.createOscillator();
+    const wetGain = audioContext.createGain();
+    wetOsc.type = 'sine';
+    wetOsc.frequency.setValueAtTime(100, now);
+    wetOsc.frequency.exponentialRampToValueAtTime(50, now + 3.0);
+    wetGain.gain.setValueAtTime(0.05, now);
+    wetGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.0);
+    wetOsc.connect(wetGain);
+    wetGain.connect(audioContext.destination);
+    wetOsc.start(now);
+    wetOsc.stop(now + 3.0);
+}

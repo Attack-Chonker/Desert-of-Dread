@@ -41,9 +41,8 @@ window.onload = function() {
     const controls = new Controls(camera, renderer.domElement);
     const gameLoop = new GameLoop(scene, camera, renderer, controls, face);
 
-    // --- 4. Asynchronously Load Fonts and Create Dependent Actors ---
-    // The font is the key to the signs, the signs are the key to the tavern,
-    // and the tavern is the key to the Lodge itself.
+    // --- 4. Create Actors ---
+    createVelvetHandCasino(scene, gameLoop);
     const loader = new FontLoader();
     loader.load(
         './fonts/helvetiker_bold.typeface.json',
@@ -59,7 +58,6 @@ window.onload = function() {
             createBlackLodge(roadhouse, gameLoop);
             // The Red Room is created but remains hidden, waiting for its cue.
             createRedRoom(scene);
-            createVelvetHandCasino(scene, gameLoop, font);
  
              // --- 5. Finalize Colliders ---
             console.log('A place both wonderful and strange. Finalizing setup...');

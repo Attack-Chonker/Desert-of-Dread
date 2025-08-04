@@ -237,6 +237,31 @@ export function createPlayingCardTexture(rank, suit) {
     return new THREE.CanvasTexture(canvas);
 }
 
+export function createNeonSignTexture(text, subtitle = null) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 1024;
+    canvas.height = 256;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0)'; // Transparent background
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Main text
+    ctx.fillStyle = '#ffffff'; // White text, color will be applied by the material
+    ctx.font = 'bold 96px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, canvas.width / 2, subtitle ? canvas.height / 2 - 40 : canvas.height / 2);
+
+    // Subtitle
+    if (subtitle) {
+        ctx.font = '64px sans-serif';
+        ctx.fillText(subtitle, canvas.width / 2, canvas.height / 2 + 60);
+    }
+
+    return new THREE.CanvasTexture(canvas);
+}
+
 export function createSlotMachineTexture() {
     const canvas = document.createElement('canvas');
     canvas.width = 256;
@@ -262,6 +287,127 @@ export function createSlotMachineTexture() {
     ctx.font = 'bold 48px Arial';
     ctx.textAlign = 'center';
     ctx.fillText('BAR', 224, 80);
+
+    return new THREE.CanvasTexture(canvas);
+}
+
+export function createBlackjackCardTexture(symbol) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 192;
+    const ctx = canvas.getContext('2d');
+
+    // Card background
+    ctx.fillStyle = '#e0e0e0';
+    ctx.fillRect(0, 0, 128, 192);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, 124, 188);
+
+    // Symbol drawing
+    ctx.fillStyle = '#000000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    switch (symbol) {
+        case 'weeping_eye':
+            ctx.font = '64px Arial';
+            ctx.fillText('👁️', 64, 96);
+            // Tear
+            ctx.fillStyle = '#0000ff';
+            ctx.beginPath();
+            ctx.moveTo(64, 112);
+            ctx.quadraticCurveTo(58, 132, 64, 148);
+            ctx.quadraticCurveTo(70, 132, 64, 112);
+            ctx.fill();
+            break;
+        case 'spiderweb':
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 8; i++) {
+                ctx.beginPath();
+                ctx.moveTo(64, 96);
+                ctx.lineTo(64 + 80 * Math.cos(i * Math.PI / 4), 96 + 80 * Math.sin(i * Math.PI / 4));
+                ctx.stroke();
+            }
+            for (let r = 20; r < 80; r += 20) {
+                ctx.beginPath();
+                for (let i = 0; i < 8; i++) {
+                    const angle = i * Math.PI / 4;
+                    if (i === 0) ctx.moveTo(64 + r * Math.cos(angle), 96 + r * Math.sin(angle));
+                    else ctx.lineTo(64 + r * Math.cos(angle), 96 + r * Math.sin(angle));
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+            break;
+        case 'cracked_mirror':
+            ctx.fillStyle = '#c0c0c0';
+            ctx.fillRect(24, 36, 80, 120);
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(24, 36);
+            ctx.lineTo(104, 156);
+            ctx.moveTo(104, 36);
+            ctx.lineTo(24, 156);
+            ctx.moveTo(50, 36);
+            ctx.lineTo(80, 156);
+            ctx.stroke();
+            break;
+        case 'screaming_mouth':
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(64, 96, 40, 0.1 * Math.PI, 0.9 * Math.PI, false);
+            ctx.arc(64, 96, 30, 0.9 * Math.PI, 0.1 * Math.PI, true);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(44, 86, 40, 8);
+            ctx.fillRect(44, 102, 40, 8);
+            break;
+    }
+
+    return new THREE.CanvasTexture(canvas);
+}
+
+export function createRouletteSymbolTexture(symbol) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    let symbolChar = '';
+    switch (symbol) {
+        case 'serpent': symbolChar = '§'; break;
+        case 'broken_crown': symbolChar = '👑'; break; // Placeholder, ideally a custom graphic
+        case 'empty_throne': symbolChar = '♄'; break;
+        case 'black_star': symbolChar = '★'; break;
+    }
+    ctx.fillText(symbolChar, 32, 32);
+
+    if (symbol === 'broken_crown') {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(10, 54);
+        ctx.lineTo(54, 10);
+        ctx.stroke();
+    }
+     if (symbol === 'black_star') {
+        ctx.fillStyle = '#000000';
+        ctx.fillText('★', 32, 32);
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeText('★', 32, 32);
+    }
+
 
     return new THREE.CanvasTexture(canvas);
 }

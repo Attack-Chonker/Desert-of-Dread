@@ -2,10 +2,11 @@
 // This is where the dream becomes a reality. We build the casino here.
 
 import * as THREE from 'three';
-import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino } from './state.js';
-import { playSlotMachineSpin, manageCasinoAudio } from './audio.js';
+import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
+import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights } from './state.js';
+import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound } from './audio.js';
 import { Door } from './Door.js';
+import * as state from './state.js';
 
 // --- CASINO CREATION ---
 
@@ -16,7 +17,7 @@ import { Door } from './Door.js';
  */
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
-export function createVelvetHandCasino(scene, gameLoop, font) {
+export function createVelvetHandCasino(scene, gameLoop) {
     const casinoGroup = new THREE.Group();
     casinoGroup.position.set(-50, 0, -500); // Position it on the main road
     scene.add(casinoGroup);
@@ -43,13 +44,12 @@ export function createVelvetHandCasino(scene, gameLoop, font) {
     };
 
     // Neon Sign
-    const neonMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-    const textSettings = { font: font, size: 2, depth: 0.2 };
-    const textGeo = new TextGeometry('VELVET HAND', textSettings);
-    textGeo.computeBoundingBox();
-    const textWidth = textGeo.boundingBox.max.x - textGeo.boundingBox.min.x;
-    const textMesh = new THREE.Mesh(textGeo, neonMaterial);
-    textMesh.position.set(-textWidth / 2, 8, 25.5);
+    const neonTexture = createNeonSignTexture('VELVET HAND');
+    const neonMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff, map: neonTexture, transparent: true });
+    const signWidth = 12;
+    const signHeight = 3;
+    const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(signWidth, signHeight), neonMaterial);
+    textMesh.position.set(0, 9, 25.2);
     casinoGroup.add(textMesh);
 
     const signLight = new THREE.PointLight(0xff00ff, 20, 30, 2);
@@ -71,11 +71,13 @@ export function createVelvetHandCasino(scene, gameLoop, font) {
     floor.receiveShadow = true;
     interiorGroup.add(floor);
 
-    // Walls (Chrome)
+    // Walls (Velvet Curtains)
+    const curtainTexture = createVelvetCurtainTexture(true);
     const wallMaterial = new THREE.MeshStandardMaterial({
-        color: 0xcccccc,
-        metalness: 0.9,
-        roughness: 0.2
+        map: curtainTexture,
+        side: THREE.DoubleSide,
+        roughness: 0.8,
+        metalness: 0.1
     });
 
     const wall1 = new THREE.Mesh(new THREE.PlaneGeometry(roomWidth, roomHeight), wallMaterial);
@@ -102,20 +104,30 @@ export function createVelvetHandCasino(scene, gameLoop, font) {
     const blueLight = new THREE.PointLight(0x0000ff, 1.5, 50, 2);
     blueLight.position.set(-15, roomHeight - 2, -15);
     interiorGroup.add(blueLight);
+    state.flickeringLights.push(blueLight);
 
     const redLight = new THREE.PointLight(0xff0000, 1.5, 50, 2);
     redLight.position.set(15, roomHeight - 2, 15);
     interiorGroup.add(redLight);
+    state.flickeringLights.push(redLight);
 
     const yellowLight = new THREE.PointLight(0xffff00, 1.5, 50, 2);
     yellowLight.position.set(0, roomHeight - 2, 0);
     interiorGroup.add(yellowLight);
+    state.flickeringLights.push(yellowLight);
 
     // --- Slot Machine ---
     createOneArmedDreamer(interiorGroup);
 
     // --- Woodsman ---
     createWoodsman(interiorGroup);
+
+    // --- Expansion Content ---
+    createNeonSigns(interiorGroup);
+    createBlackjackTable(interiorGroup);
+    createRouletteTable(interiorGroup);
+    createPatrons(interiorGroup);
+
 
     return casinoGroup;
 }
@@ -200,6 +212,184 @@ function createOneArmedDreamer(parentGroup) {
 }
 
 /**
+ * Creates the new neon signs for the casino.
+ * @param {THREE.Group} parentGroup The group to add the signs to.
+ */
+function createNeonSigns(parentGroup) {
+    const signs = [
+        { text: "PAYOUTS IN REGRET", color: 0x00ff00, position: new THREE.Vector3(-15, 10, -24.8), rotation: 0, width: 18, height: 4 },
+        { text: "THE HOUSE ALWAYS WINS", subtitle: "(YOUR SOUL)", color: 0xff00ff, position: new THREE.Vector3(15, 10, -24.8), rotation: 0, width: 18, height: 4 },
+        { text: "CHECK YOUR REFLECTION", color: 0x00ff00, position: new THREE.Vector3(24.8, 10, 0), rotation: -Math.PI / 2, width: 18, height: 4 },
+        { text: "TIME IS A FLAT CIRCLE", subtitle: "(OF DEBT)", color: 0xff00ff, position: new THREE.Vector3(-24.8, 10, 0), rotation: Math.PI / 2, width: 18, height: 4 }
+    ];
+
+    signs.forEach(signInfo => {
+        const texture = createNeonSignTexture(signInfo.text, signInfo.subtitle);
+        const material = new THREE.MeshBasicMaterial({
+            color: signInfo.color,
+            map: texture,
+            transparent: true,
+            alphaTest: 0.5 // Discard transparent pixels
+        });
+
+        const signMesh = new THREE.Mesh(new THREE.PlaneGeometry(signInfo.width, signInfo.height), material);
+        signMesh.position.copy(signInfo.position);
+        signMesh.rotation.y = signInfo.rotation;
+        parentGroup.add(signMesh);
+
+        const signLight = new THREE.PointLight(signInfo.color, 8, 25, 2);
+        signLight.position.copy(signInfo.position);
+        parentGroup.add(signLight);
+    });
+}
+
+
+/**
+ * Creates the Blackjack table.
+ * @param {THREE.Group} parentGroup The group to add the table to.
+ */
+function createBlackjackTable(parentGroup) {
+    const blackjackGroup = new THREE.Group();
+    blackjackGroup.position.set(15, 0, -10);
+    parentGroup.add(blackjackGroup);
+
+    // Table
+    const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 0.5, 32, 1, false, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0x003300 }));
+    tableTop.position.y = 3.5;
+    tableTop.rotation.y = Math.PI / 2;
+    blackjackGroup.add(tableTop);
+    colliders.push(tableTop);
+
+    // Dealer (Mannequin)
+    const dealerMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.8 });
+    const dealerBody = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 2), dealerMaterial);
+    dealerBody.position.set(0, 1.5, 4);
+    blackjackGroup.add(dealerBody);
+
+    const dealerHead = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), dealerMaterial);
+    dealerHead.position.set(0, 4, 4);
+    blackjackGroup.add(dealerHead);
+
+    // Cards
+    const cardSymbols = ['weeping_eye', 'spiderweb', 'cracked_mirror', 'screaming_mouth'];
+    const cards = [];
+    for (let i = 0; i < 2; i++) {
+        const cardSymbol = cardSymbols[Math.floor(Math.random() * cardSymbols.length)];
+        const cardTexture = createBlackjackCardTexture(cardSymbol);
+        const cardMaterial = new THREE.MeshBasicMaterial({ map: cardTexture });
+        const card = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.5), cardMaterial);
+        card.position.set(-2 + i * 2, 3.76, 2);
+        blackjackGroup.add(card);
+        cards.push(card);
+    }
+
+    const blackjackInteractable = {
+        mesh: blackjackGroup,
+        prompt: "A game of Blackjack? The dealer smiles.",
+        onInteract: () => {
+            playBlackjackCardSound();
+            console.log("You play a hand of Blackjack.");
+            // Simple game logic: just replace the cards
+            cards.forEach(card => {
+                const cardSymbol = cardSymbols[Math.floor(Math.random() * cardSymbols.length)];
+                card.material.map = createBlackjackCardTexture(cardSymbol);
+                card.material.needsUpdate = true;
+            });
+            const outcome = Math.random();
+            if (outcome < 0.4) { // Lose
+                blackjackInteractable.prompt = "You lose. The dealer's smile seems to widen.";
+                // Trigger minor psychological penalty
+            } else if (outcome < 0.9) { // Win
+                blackjackInteractable.prompt = "You win. A fleeting sense of relief.";
+            } else { // Blackjack
+                blackjackInteractable.prompt = "Blackjack! A single, perfect tear rolls down the dealer's cheek.";
+                // Give player a dead fly
+            }
+        }
+    };
+    interactables.push(blackjackInteractable);
+}
+
+/**
+ * Creates the Roulette table.
+ * @param {THREE.Group} parentGroup The group to add the table to.
+ */
+function createRouletteTable(parentGroup) {
+    const rouletteGroup = new THREE.Group();
+    rouletteGroup.position.set(-15, 0, -10);
+    parentGroup.add(rouletteGroup);
+
+    // Table
+    const table = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 3.5, 32), new THREE.MeshStandardMaterial({ color: 0x4a2c2a }));
+    table.position.y = 1.75;
+    rouletteGroup.add(table);
+    colliders.push(table);
+
+    // Roulette Wheel
+    const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 0.5, 64), wheelMaterial);
+    wheel.position.y = 3.75;
+    rouletteGroup.add(wheel);
+
+    // Symbols
+    const symbols = ['serpent', 'broken_crown', 'empty_throne', 'black_star'];
+    for (let i = 0; i < 16; i++) {
+        const symbol = symbols[i % symbols.length];
+        const texture = createRouletteSymbolTexture(symbol);
+        const material = new THREE.MeshBasicMaterial({ map: texture });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), material);
+        const angle = (i / 16) * Math.PI * 2;
+        plane.position.set(Math.cos(angle) * 3.5, 4.01, Math.sin(angle) * 3.5);
+        plane.rotation.x = -Math.PI / 2;
+        plane.rotation.z = -angle;
+        rouletteGroup.add(plane);
+    }
+
+    // Eyeball
+    const eyeball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    eyeball.position.y = 4.1;
+    rouletteGroup.add(eyeball);
+
+    const rouletteInteractable = {
+        mesh: rouletteGroup,
+        prompt: "A strange roulette wheel. An eyeball rests in the center.",
+        onInteract: () => {
+            playRouletteWheelSpinSound();
+            console.log("The eyeball spins around the wheel.");
+            // Spin animation
+            let spinTime = 0;
+            const spinDuration = 3; // seconds
+            const startAngle = eyeball.position.x;
+            const endAngle = Math.random() * Math.PI * 2 * 4; // Spin a few times
+            function animateSpin(time) {
+                if (!animateSpin.lastTime) animateSpin.lastTime = time;
+                const deltaTime = (time - animateSpin.lastTime) / 1000;
+                animateSpin.lastTime = time;
+
+                spinTime += deltaTime;
+                if (spinTime < spinDuration) {
+                    const progress = spinTime / spinDuration;
+                    const angle = startAngle + (endAngle - startAngle) * progress;
+                    eyeball.position.x = Math.cos(angle) * 3.5;
+                    eyeball.position.z = Math.sin(angle) * 3.5;
+                    requestAnimationFrame(animateSpin);
+                } else {
+                    animateSpin.lastTime = undefined;
+                    const finalAngle = endAngle % (Math.PI * 2);
+                    const winningSymbolIndex = Math.floor((finalAngle / (Math.PI * 2)) * 16);
+                    const winningSymbol = symbols[winningSymbolIndex % symbols.length];
+                    rouletteInteractable.prompt = `The eyeball lands on the ${winningSymbol.replace('_', ' ')}.`;
+                    // Trigger consequence based on symbol
+                }
+            }
+            requestAnimationFrame(animateSpin);
+        }
+    };
+    interactables.push(rouletteInteractable);
+}
+
+
+/**
  * Creates the Woodsman entity.
  * @param {THREE.Group} parentGroup The group to add the Woodsman to.
  */
@@ -239,4 +429,34 @@ function createWoodsman(parentGroup) {
         }
     };
     interactables.push(woodsmanInteractable);
+}
+
+/**
+ * Creates the uncanny patrons of the casino.
+ * @param {THREE.Group} parentGroup The group to add the patrons to.
+ */
+function createPatrons(parentGroup) {
+    const patronMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+
+    // Patron 1: Woman at a slot machine
+    const patron1 = new THREE.Group();
+    patron1.position.set(-10, 0, -15);
+    parentGroup.add(patron1);
+    const body1 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), patronMaterial);
+    body1.position.y = 2.5;
+    patron1.add(body1);
+    const head1 = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), patronMaterial);
+    head1.position.y = 5.5;
+    patron1.add(head1);
+
+    // Patron 2: Man with a martini
+    const patron2 = new THREE.Group();
+    patron2.position.set(10, 0, 15);
+    parentGroup.add(patron2);
+    const body2 = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 2), patronMaterial);
+    body2.position.y = 2.5;
+    patron2.add(body2);
+    const head2 = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), patronMaterial);
+    head2.position.y = 5.5;
+    patron2.add(head2);
 }
