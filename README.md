@@ -69,16 +69,22 @@ To use a different port, start the server with `PORT=8080 npm start`.
 
 ## Push this project to your GitHub
 
-Once you're happy with your local changes, you can publish the `work` branch to your GitHub repository.
+Once you're happy with your local changes, publish the project to your GitHub account. The commands below assume you want `main` to be the default branch and `work` to remain as a secondary branch.
 
 1. Add your GitHub repo as a remote (replace the URL with your own):
    ```bash
    git remote add origin https://github.com/<your-username>/<your-repo>.git
    ```
-2. Push the branch and set it as the upstream so future `git push` commands default to `work`:
+2. Push the `main` branch (the one checked out in this workspace) and set it as the default upstream:
+   ```bash
+   git push -u origin main
+   ```
+3. (Optional) Also push the `work` branch if you want to open a pull request from it or keep it synced:
    ```bash
    git push -u origin work
    ```
+
+After pushing, you can open a pull request from `work` into `main` on GitHub, or merge locally and push the updated `main` branch.
 
 ---
 
