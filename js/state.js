@@ -13,6 +13,9 @@ export const lodgeAudioNodes = {};
 export const redRoomAudioNodes = {};
 export const casinoAudioNodes = {};
 
+export let ruinVisionActive = false;
+export let surveillanceAlertActive = false;
+
 
 // Scene objects and materials
 export let flickeringLights = [];
@@ -131,6 +134,8 @@ export function setCasinoState(newState) { casinoState = newState; }
 export function setWoodsman(newWoodsman) { woodsman = newWoodsman; }
 export function setSlotMachine(newSlotMachine) { slotMachine = newSlotMachine; }
 export function setHasCigaretteButt(value) { hasCigaretteButt = value; }
+export function setRuinVisionActive(value) { ruinVisionActive = value; }
+export function setSurveillanceAlertActive(value) { surveillanceAlertActive = value; }
 
 // Red Room Setters
 export function setRedRoomState(newState) { redRoomState = newState; }
