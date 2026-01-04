@@ -542,3 +542,125 @@ export function playRouletteWheelSpinSound() {
     wetOsc.start(now);
     wetOsc.stop(now + 3.0);
 }
+
+export function playSerpentWhispers() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const duration = 4;
+    const voices = 4;
+
+    for (let i = 0; i < voices; i++) {
+        const bufferSize = audioContext.sampleRate * duration;
+        const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        for (let j = 0; j < bufferSize; j++) {
+            output[j] = (Math.random() * 2 - 1) * 0.2;
+        }
+
+        const whisper = audioContext.createBufferSource();
+        whisper.buffer = noiseBuffer;
+
+        const filter = audioContext.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 500 + Math.random() * 500;
+        filter.Q.value = 5;
+
+        const gain = audioContext.createGain();
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.08, now + 0.5);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        const panner = audioContext.createStereoPanner();
+        panner.pan.setValueAtTime((Math.random() * 2 - 1), now);
+
+        whisper.connect(filter);
+        filter.connect(gain);
+        gain.connect(panner);
+        panner.connect(audioContext.destination);
+
+        whisper.start(now + Math.random() * 0.3);
+        whisper.stop(now + duration);
+    }
+}
+
+export function playRuinVisionSting() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 1.2);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+
+    osc.start(now);
+    osc.stop(now + 1.2);
+}
+
+export function playHeartbeatSilence(duration = 10) {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+
+    const heartbeat = audioContext.createOscillator();
+    heartbeat.type = 'sine';
+    heartbeat.frequency.setValueAtTime(70, now);
+
+    const heartbeatGain = audioContext.createGain();
+    heartbeatGain.gain.setValueAtTime(0, now);
+    heartbeat.connect(heartbeatGain);
+    heartbeatGain.connect(audioContext.destination);
+
+    for (let i = 0; i < duration; i += 0.9) {
+        const beatTime = now + i;
+        heartbeatGain.gain.setValueAtTime(0, beatTime);
+        heartbeatGain.gain.linearRampToValueAtTime(0.25, beatTime + 0.05);
+        heartbeatGain.gain.exponentialRampToValueAtTime(0.0001, beatTime + 0.3);
+    }
+
+    const fadeOutDuration = 0.2;
+    const fadeBackStart = now + duration;
+
+    const duckGainNode = (gainNode, originalValue) => {
+        if (!gainNode) return;
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.linearRampToValueAtTime(0.0001, now + fadeOutDuration);
+        gainNode.gain.linearRampToValueAtTime(originalValue, fadeBackStart + fadeOutDuration);
+    };
+
+    const mainGain = mainAudioNodes.masterGain;
+    const jazzGain = casinoAudioNodes.jazzGain;
+    const humGain = casinoAudioNodes.humGain;
+
+    duckGainNode(mainGain, mainGain ? mainGain.gain.value : 0.004);
+    duckGainNode(jazzGain, jazzGain ? jazzGain.gain.value : 0.05);
+    duckGainNode(humGain, humGain ? humGain.gain.value : 0.1);
+
+    heartbeat.start(now);
+    heartbeat.stop(fadeBackStart + 0.5);
+}
+
+export function playSurveillanceCue() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+
+    const ping = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    ping.type = 'triangle';
+    ping.frequency.setValueAtTime(1400, now);
+    ping.frequency.exponentialRampToValueAtTime(700, now + 0.4);
+
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+
+    ping.connect(gain);
+    gain.connect(audioContext.destination);
+
+    ping.start(now);
+    ping.stop(now + 0.4);
+}

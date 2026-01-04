@@ -3,8 +3,8 @@
 
 import * as THREE from 'three';
 import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights } from './state.js';
-import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound } from './audio.js';
+import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights, setRuinVisionActive, setSurveillanceAlertActive } from './state.js';
+import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound, playSerpentWhispers, playRuinVisionSting, playHeartbeatSilence, playSurveillanceCue } from './audio.js';
 import { Door } from './Door.js';
 import * as state from './state.js';
 
@@ -378,14 +378,77 @@ function createRouletteTable(parentGroup) {
                     const finalAngle = endAngle % (Math.PI * 2);
                     const winningSymbolIndex = Math.floor((finalAngle / (Math.PI * 2)) * 16);
                     const winningSymbol = symbols[winningSymbolIndex % symbols.length];
-                    rouletteInteractable.prompt = `The eyeball lands on the ${winningSymbol.replace('_', ' ')}.`;
-                    // Trigger consequence based on symbol
+                    console.log(`Roulette result: ${winningSymbol}`);
+                    handleRouletteConsequence(winningSymbol, rouletteInteractable);
                 }
             }
             requestAnimationFrame(animateSpin);
         }
     };
     interactables.push(rouletteInteractable);
+}
+
+function handleRouletteConsequence(winningSymbol, rouletteInteractable) {
+    switch (winningSymbol) {
+        case 'serpent':
+            rouletteInteractable.prompt = "The eyeball lands on the serpent. Whispers coil around you.";
+            console.log("Surround-sound whispers hiss from every corner.");
+            playSerpentWhispers();
+            break;
+        case 'broken_crown':
+            rouletteInteractable.prompt = "The broken crown reveals ruin. Your vision fractures.";
+            console.log("A ruin-vision overlays the room.");
+            triggerRuinVision();
+            break;
+        case 'empty_throne':
+            rouletteInteractable.prompt = "Empty throne. Silence swallows the casino as your heartbeat pounds.";
+            console.log("Silence falls; only the heartbeat remains.");
+            playHeartbeatSilence(10);
+            break;
+        case 'black_star':
+            rouletteInteractable.prompt = "Black star. Lights stutter and an unseen lens focuses on you.";
+            console.log("Lights thrash violently under surveillance.");
+            triggerViolentLightFlicker();
+            playSurveillanceCue();
+            setSurveillanceAlertActive(true);
+            setTimeout(() => setSurveillanceAlertActive(false), 4000);
+            break;
+        default:
+            rouletteInteractable.prompt = `The eyeball lands on the ${winningSymbol.replace('_', ' ')}.`;
+    }
+}
+
+function triggerRuinVision(duration = 3.5) {
+    setRuinVisionActive(true);
+    playRuinVisionSting();
+    setTimeout(() => setRuinVisionActive(false), duration * 1000);
+}
+
+function triggerViolentLightFlicker(duration = 4) {
+    const originals = flickeringLights.map(light => ({
+        light,
+        intensity: light.intensity,
+        color: light.color && light.color.clone ? light.color.clone() : null
+    }));
+
+    const interval = setInterval(() => {
+        flickeringLights.forEach(light => {
+            light.intensity = 6 + Math.random() * 6;
+            if (light.color && light.color.offsetHSL) {
+                light.color.offsetHSL(0, 0, Math.random() * 0.1);
+            }
+        });
+    }, 80);
+
+    setTimeout(() => {
+        clearInterval(interval);
+        originals.forEach(({ light, intensity, color }) => {
+            light.intensity = intensity;
+            if (color && light.color && light.color.copy) {
+                light.color.copy(color);
+            }
+        });
+    }, duration * 1000);
 }
 
 
