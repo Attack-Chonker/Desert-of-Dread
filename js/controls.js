@@ -25,6 +25,9 @@ export class Controls {
             this.startButton.addEventListener('click', (event) => {
                 event.stopPropagation();
                 this.controls.lock();
+                // Immediately clear the overlay so players aren't stuck if pointer lock is denied
+                this._togglePanel(this.titleCard, false);
+                this._togglePanel(this.resumeHint, false);
                 initAudio();
             });
         }
