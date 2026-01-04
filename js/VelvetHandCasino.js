@@ -421,11 +421,13 @@ function createWoodsman(parentGroup) {
     const body = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 2), bodyMaterial);
     body.position.y = 4;
     woodsman.add(body);
+    colliders.push(body);
 
     const headMaterial = new THREE.MeshStandardMaterial({ color: 0xeeeeee, emissive: 0xffffff, emissiveIntensity: 0.1 });
     const head = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), headMaterial);
     head.position.y = 9;
     woodsman.add(head);
+    colliders.push(head);
 
     const woodsmanInteractable = {
         mesh: woodsman,
