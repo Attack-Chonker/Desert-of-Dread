@@ -12,9 +12,47 @@
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital@1&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="crosshair"></div>
+    <div id="vignette"></div>
+    <div id="crosshair" class="hidden"></div>
     <div id="warning">The stars whisper secrets here.</div>
     <div id="interaction-prompt"></div>
+
+    <div id="title-card" class="panel">
+        <div class="panel-inner">
+            <p class="eyebrow">An interactive dream</p>
+            <h1>Sometimes My Arms Bend Back</h1>
+            <p class="tagline">A lonely road. A jukebox humming somewhere in the dark. The desert is listening.</p>
+            <div class="panel-grid">
+                <div>
+                    <h2>Controls</h2>
+                    <ul>
+                        <li><strong>Look</strong>: Mouse</li>
+                        <li><strong>Move</strong>: W A S D</li>
+                        <li><strong>Interact</strong>: E</li>
+                        <li><strong>Flashlight</strong>: F</li>
+                    </ul>
+                </div>
+                <div>
+                    <h2>Tips</h2>
+                    <ul>
+                        <li>Headphones recommended.</li>
+                        <li>Click to lock the mouse and begin.</li>
+                        <li>Strange things answer to music.</li>
+                    </ul>
+                </div>
+            </div>
+            <button id="start-button">Enter the desert</button>
+            <p class="hint">If the cursor appears, click again to resume control.</p>
+        </div>
+    </div>
+
+    <div id="resume-hint" class="panel hidden">
+        <div class="panel-inner">
+            <p class="tagline">The world pauses while your mouse is free.</p>
+            <button id="resume-button">Return to the road</button>
+        </div>
+    </div>
+
     <!-- This new element will display the unsettling, reversed text of the Lodge -->
     <div id="reversed-text"></div>
 

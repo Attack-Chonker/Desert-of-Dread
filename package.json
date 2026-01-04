@@ -1,0 +1,12 @@
+{
+  "name": "desert-of-dread",
+  "version": "1.0.0",
+  "description": "Atmospheric horror experience built with Three.js.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
