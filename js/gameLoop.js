@@ -710,7 +710,7 @@ import { createDoppelganger } from './actors.js';
        if (Math.random() < 0.1) {
            const cameraDirection = new THREE.Vector3();
            this.camera.getWorldDirection(cameraDirection);
-           const behindPosition = this.camera.position.clone().add(cameraDirection.multiplyScalar(-8));
+           const behindPosition = this.camera.position.clone().add(cameraDirection.multiplyScalar(-6));
            state.woodsman.position.copy(behindPosition);
            state.woodsman.lookAt(this.camera.position);
        }
