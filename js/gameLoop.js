@@ -682,12 +682,9 @@ import { createDoppelganger } from './actors.js';
     }
 
     _updateCasinoJackpot(delta, time) {
-       manageCasinoAudio(false); // Silence
-       console.log("The air grows cold. A single, scorched cigarette butt is dispensed.");
-       if (state.slotMachine && state.slotMachine.userData.cigaretteButt) {
-           state.slotMachine.userData.cigaretteButt.visible = true;
-       }
-       state.setCasinoState('woodsman');
+       // The jackpot sequence is orchestrated in the slot machine interaction.
+       // Keep the ambience muted while the sequence plays out.
+       manageCasinoAudio(false);
     }
 
     _updateCasinoWoodsman(delta, time) {

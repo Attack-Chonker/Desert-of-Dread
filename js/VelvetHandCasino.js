@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights } from './state.js';
+import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights, setHasCigaretteButt } from './state.js';
 import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound } from './audio.js';
 import { Door } from './Door.js';
 import * as state from './state.js';
@@ -176,8 +176,61 @@ function createOneArmedDreamer(parentGroup) {
             // 15% chance of winning
             if (Math.random() < 0.15) {
                 console.log("JACKPOT!");
-                slotMachineInteractable.prompt = "The machine falls silent.";
+                slotMachineInteractable.prompt = "The machine exhales a freezing breath.";
+                manageCasinoAudio(false);
                 setCasinoState('jackpot');
+
+                const butt = slotMachine.userData.cigaretteButt;
+                const coldLights = flickeringLights.slice();
+                const originalLightStates = coldLights.map(light => ({
+                    color: light.color.clone(),
+                    intensity: light.intensity
+                }));
+
+                if (!slotMachine.userData.jackpotSequenceRunning) {
+                    slotMachine.userData.jackpotSequenceRunning = true;
+
+                    // Step 2: reveal the cigarette butt after the silence sinks in
+                    setTimeout(() => {
+                        if (butt) {
+                            butt.visible = true;
+                            slotMachineInteractable.prompt = "A scorched cigarette butt clinks into the tray.";
+                        }
+                    }, 850);
+
+                    // Step 3: localized cold/visual effect
+                    setTimeout(() => {
+                        coldLights.forEach((light, index) => {
+                            light.color = new THREE.Color(0x99ccff);
+                            light.intensity = originalLightStates[index].intensity * 0.35;
+                        });
+
+                        setTimeout(() => {
+                            coldLights.forEach((light, index) => {
+                                light.color.copy(originalLightStates[index].color);
+                                light.intensity = originalLightStates[index].intensity;
+                            });
+                        }, 1800);
+                    }, 1450);
+
+                    // Step 4/5: usher in the Woodsman and reintroduce ambience
+                    setTimeout(() => {
+                        if (state.woodsman) {
+                            state.woodsman.visible = true;
+                        }
+                        slotMachineInteractable.prompt = "The air stills behind you.";
+                        setCasinoState('woodsman');
+                    }, 2400);
+
+                    setTimeout(() => {
+                        if (state.casinoState === 'woodsman') {
+                            slotMachineInteractable.prompt = "Got a light?";
+                            manageCasinoAudio(true);
+                        } else {
+                            manageCasinoAudio(true);
+                        }
+                    }, 6200);
+                }
             } else {
                 console.log("Nothing happens...");
                 slotMachineInteractable.prompt = "The wheels spin, but stop on nothing of interest.";
