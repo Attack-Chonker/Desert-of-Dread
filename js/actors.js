@@ -14,7 +14,9 @@ import {
     roadhouseLights, setRoadhouseInterior, setBlackLodge, setLodgeStrobe,
     setFireplaceBacking, setLodgeMan, setLodgeStatue, setDoppelganger, setLauraDoppelganger,
     setRedRoomState, setJukebox, setRedRoom, setHasOwlCaveCoin, hasOwlCaveCoin, setRedRoomMan,
-    canExitLodge, setCanExitLodge, setRocket, catState, setCatState
+    canExitLodge, setCanExitLodge, setRocket, catState, setCatState,
+    setStoreFan, setStoreClerk, setStoreClerkHead, setStoreClerkEyes, setStoreCoolerGlow,
+    setStoreCounterLamp, setStoreInteriorLight
 } from './state.js';
 import { createCat as createOriginalCat, createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace } from './actors-original.js';
 
@@ -271,10 +273,32 @@ export function createGasStation(scene, font) {
     oilStain.position.set(0, 0.13, 10);
     stationGroup.add(oilStain);
 
+    const patchedConcrete = new THREE.Mesh(new THREE.BoxGeometry(65, 0.18, 40), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.95 }));
+    patchedConcrete.position.set(0, 0.1, -32);
+    patchedConcrete.receiveShadow = true;
+    stationGroup.add(patchedConcrete);
+
+    const benchLegGeo = new THREE.BoxGeometry(0.6, 1, 0.6);
+
     // --- Main Building ---
     const buildingWidth = 40, buildingDepth = 25, buildingHeight = 10, wallThickness = 0.5;
     const building = new THREE.Group();
     stationGroup.add(building);
+
+    const curb = new THREE.Mesh(new THREE.BoxGeometry(90, 0.4, 2), new THREE.MeshStandardMaterial({ color: 0x57514b, roughness: 0.9 }));
+    curb.position.set(0, 0.25, buildingDepth / 2 + 1);
+    stationGroup.add(curb);
+
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(10, 0.7, 2.2), woodMaterial);
+    bench.position.set(-buildingWidth / 2 + 6, 1, buildingDepth / 2 + 2);
+    stationGroup.add(bench);
+    colliders.push(bench);
+
+    for (let i = -1; i <= 1; i += 2) {
+        const leg = new THREE.Mesh(benchLegGeo, panelingMaterial);
+        leg.position.set(-buildingWidth / 2 + 6 + (i * 4), 0.5, buildingDepth / 2 + 2);
+        stationGroup.add(leg);
+    }
 
     const floor = new THREE.Mesh(new THREE.BoxGeometry(buildingWidth, wallThickness, buildingDepth), floorMaterial);
     floor.position.y = wallThickness / 2;
@@ -333,6 +357,20 @@ export function createGasStation(scene, font) {
     displayNeon.rotation.x = Math.PI / 2;
     displayNeon.position.set(0, 3, buildingDepth / 2 + 0.6);
     building.add(displayNeon);
+
+    const iceChest = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 3.5), new THREE.MeshStandardMaterial({ color: 0xdfe9ee, roughness: 0.65, metalness: 0.15 }));
+    iceChest.position.set(buildingWidth / 2 - 7, 1.5, buildingDepth / 2 + 1.8);
+    stationGroup.add(iceChest);
+    colliders.push(iceChest);
+
+    const iceTop = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.35, 3.9), new THREE.MeshStandardMaterial({ color: 0xf7f7f7, roughness: 0.8 }));
+    iceTop.position.set(buildingWidth / 2 - 7, 3.1, buildingDepth / 2 + 1.8);
+    stationGroup.add(iceTop);
+
+    const newspaperBox = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), new THREE.MeshStandardMaterial({ color: 0x264653, roughness: 0.6 }));
+    newspaperBox.position.set(-buildingWidth / 2 + 3, 2, buildingDepth / 2 + 1.2);
+    stationGroup.add(newspaperBox);
+    colliders.push(newspaperBox);
 
     const lanternLight = new THREE.PointLight(0xffd9b5, 1.8, 20, 2);
     lanternLight.position.set(-buildingWidth / 2 + 2, buildingHeight - 2, buildingDepth / 2 + 1);
@@ -459,10 +497,15 @@ export function createGasStation(scene, font) {
     interiorLight.position.set(0, buildingHeight - 1.5, 0);
     interiorLight.lookAt(0,0,0);
     building.add(interiorLight);
+    setStoreInteriorLight(interiorLight);
 
     // Convenience store interior
     const storeGroup = new THREE.Group();
     building.add(storeGroup);
+
+    const tiledEntry = new THREE.Mesh(new THREE.BoxGeometry(22, 0.15, 10), new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.85 }));
+    tiledEntry.position.set(0, 0.08, buildingDepth / 2 - 2);
+    stationGroup.add(tiledEntry);
 
     const checkoutCounter = new THREE.Mesh(new THREE.BoxGeometry(12, 3, 4), woodMaterial);
     checkoutCounter.position.set(0, 1.5, buildingDepth / 2 - 6);
@@ -485,6 +528,15 @@ export function createGasStation(scene, font) {
     counterLamp.position.set(0, 5.5, buildingDepth / 2 - 6);
     storeGroup.add(counterLamp);
     flickeringLights.push(counterLamp);
+    setStoreCounterLamp(counterLamp);
+
+    const coffeeUrn = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6, 12), new THREE.MeshStandardMaterial({ color: 0x4d4d52, metalness: 0.6, roughness: 0.35 }));
+    coffeeUrn.position.set(-4.5, 3.9, buildingDepth / 2 - 6.3);
+    storeGroup.add(coffeeUrn);
+
+    const pastryTray = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.3, 1.5), new THREE.MeshStandardMaterial({ color: 0x9c6b46, roughness: 0.65 }));
+    pastryTray.position.set(4, 3.6, buildingDepth / 2 - 6);
+    storeGroup.add(pastryTray);
 
     const mat = new THREE.Mesh(new THREE.PlaneGeometry(14, 6), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9 }));
     mat.rotation.x = -Math.PI / 2;
@@ -514,6 +566,10 @@ export function createGasStation(scene, font) {
     createShelfRow(-8, 2);
     createShelfRow(8, 2);
 
+    const magazineRack = new THREE.Mesh(new THREE.BoxGeometry(3, 3.5, 0.6), new THREE.MeshStandardMaterial({ color: 0x4b3627, roughness: 0.7 }));
+    magazineRack.position.set(0, 1.75, 0.5);
+    storeGroup.add(magazineRack);
+
     const coolerCase = new THREE.Mesh(new THREE.BoxGeometry(16, 8, 2), steelMaterial);
     coolerCase.position.set(0, 4, -buildingDepth / 2 + 1.5);
     storeGroup.add(coolerCase);
@@ -526,6 +582,18 @@ export function createGasStation(scene, font) {
     const coolerGlow = new THREE.PointLight(0x7ad7ff, 1.2, 25, 2);
     coolerGlow.position.set(0, 4, -buildingDepth / 2 + 3);
     storeGroup.add(coolerGlow);
+    setStoreCoolerGlow(coolerGlow);
+
+    const bellInteractable = {
+        mesh: bell,
+        prompt: "Tap the dusty service bell?",
+        onInteract: () => {
+            counterLamp.intensity = 2.3;
+            coolerGlow.intensity = 1.4;
+            interiorLight.intensity = 2.4;
+        }
+    };
+    interactables.push(bellInteractable);
 
     const ceilingFan = new THREE.Group();
     ceilingFan.position.set(-10, buildingHeight - 2, 0);
@@ -539,6 +607,7 @@ export function createGasStation(scene, font) {
         ceilingFan.add(blade);
     }
     building.add(ceilingFan);
+    setStoreFan(ceilingFan);
 
     // The clerk who should not be there
     const clerk = new THREE.Group();
@@ -549,13 +618,16 @@ export function createGasStation(scene, font) {
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.8, 16, 16), new THREE.MeshStandardMaterial({ color: 0x3b322e, roughness: 0.7 }));
     head.position.y = 5.7;
     clerk.add(head);
+    setStoreClerkHead(head);
     const eyes = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.2, 1.2), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xc4f2ff, emissiveIntensity: 2 }));
     eyes.position.set(0, 5.7, 0.75);
     clerk.add(eyes);
+    setStoreClerkEyes(eyes);
     const hands = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x4d4039, roughness: 0.7 }));
     hands.position.set(0, 3.2, 0.6);
     clerk.add(hands);
     storeGroup.add(clerk);
+    setStoreClerk(clerk);
 
     const clerkInteractable = {
         mesh: clerk,

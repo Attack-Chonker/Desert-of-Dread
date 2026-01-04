@@ -321,7 +321,8 @@ import { createDoppelganger } from './actors.js';
          
          // Update individual systems and actors
          this._updateCatStateMachine(delta, time);
-         
+        this._updateConvenienceStore(delta, time);
+
          if (state.isRocketRideActive) {
              this._updateRocketRide(delta);
          }
@@ -506,6 +507,40 @@ import { createDoppelganger } from './actors.js';
      // Updates all interactive doors.
      _updateDoors(delta) {
          state.doors.forEach(door => door.update(delta));
+     }
+
+     _updateConvenienceStore(delta, time) {
+         if (state.storeFan) {
+             state.storeFan.rotation.y += delta * 2.2;
+         }
+
+         if (state.storeClerk) {
+             state.storeClerk.position.y = Math.sin(time * 1.2) * 0.05;
+         }
+
+         if (state.storeClerkHead) {
+             const headWorldPos = new THREE.Vector3();
+             state.storeClerkHead.getWorldPosition(headWorldPos);
+             const lookTarget = this.camera.position.clone();
+             lookTarget.y = headWorldPos.y;
+             state.storeClerkHead.lookAt(lookTarget);
+         }
+
+         if (state.storeClerkEyes && state.storeClerkEyes.material) {
+             state.storeClerkEyes.material.emissiveIntensity = 1.8 + Math.sin(time * 3) * 0.4;
+         }
+
+         if (state.storeCoolerGlow) {
+             state.storeCoolerGlow.intensity = 1.2 + Math.sin(time * 0.6) * 0.3;
+         }
+
+         if (state.storeCounterLamp) {
+             state.storeCounterLamp.intensity = 1.4 + Math.sin(time * 0.8) * 0.25;
+         }
+
+         if (state.storeInteriorLight) {
+             state.storeInteriorLight.intensity = 2 + Math.sin(time * 0.25) * 0.1;
+         }
      }
 
     _updateRocketRide(delta) {

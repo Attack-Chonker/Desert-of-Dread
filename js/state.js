@@ -23,6 +23,13 @@ export const colliders = [];
 // Actors
 export let cat, voidPortal, voidLight, catHead, moon, catMoon, moonLight, catMoonLight;
 export let tentacles = [];
+export let storeFan;
+export let storeClerk;
+export let storeClerkHead;
+export let storeClerkEyes;
+export let storeCoolerGlow;
+export let storeCounterLamp;
+export let storeInteriorLight;
 
 // Twin Peaks / Black Lodge state
 export let rocket;
@@ -94,6 +101,13 @@ export function setNextGhostAppearance(newTime) { nextGhostAppearance = newTime;
 export function setScreenShake(newScreenShake) { screenShake = newScreenShake; }
 export function addTentacle(tentacle) { tentacles.push(tentacle); }
 export function getTentacles() { return tentacles; }
+export function setStoreFan(fan) { storeFan = fan; }
+export function setStoreClerk(clerk) { storeClerk = clerk; }
+export function setStoreClerkHead(head) { storeClerkHead = head; }
+export function setStoreClerkEyes(eyes) { storeClerkEyes = eyes; }
+export function setStoreCoolerGlow(light) { storeCoolerGlow = light; }
+export function setStoreCounterLamp(light) { storeCounterLamp = light; }
+export function setStoreInteriorLight(light) { storeInteriorLight = light; }
 
 export function setRocket(newRocket) { rocket = newRocket; }
 export function setIsPlayerInRocket(value) { isPlayerInRocket = value; }
