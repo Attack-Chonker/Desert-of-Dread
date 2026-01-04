@@ -24,25 +24,25 @@ export { createVoidPortalAndTentacles, createTrashCans, createWaterTower, create
 // --- WORLD CREATION ---
 
 export function createLightingAndWorld(scene) {
-    // Reduced ambient light to create deeper, more oppressive shadows.
-    const ambientLight = new THREE.AmbientLight(0x303040, 0.15);
+    // Warmer ambient light to evoke the last glow of dusk while keeping the world moody.
+    const ambientLight = new THREE.AmbientLight(0x4a3c30, 0.35);
     scene.add(ambientLight);
-    // Moonlight is now colder and less intense, making the world feel starker and emptier.
-    const newMoonLight = new THREE.DirectionalLight(0xddeeff, 0.4);
-    newMoonLight.position.set(100, 200, 100);
+    // Sunset light casts long, dramatic shadows with a warm hue.
+    const newMoonLight = new THREE.DirectionalLight(0xffc189, 0.85);
+    newMoonLight.position.set(-250, 180, 120);
     newMoonLight.castShadow = true;
     newMoonLight.shadow.mapSize.width = 2048;
     newMoonLight.shadow.mapSize.height = 2048;
     scene.add(newMoonLight);
     setMoonLight(newMoonLight);
 
-    // A darker, more desaturated ground color to match the new mood. High roughness reduces unnatural highlights.
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x4a423b, roughness: 0.9 }));
+    // Evening-warmed ground keeps detail without harsh highlights.
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x6b5b4a, roughness: 0.85 }));
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(5000, 15), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(5000, 15), new THREE.MeshStandardMaterial({ color: 0x262223 }));
     road.rotation.x = -Math.PI / 2;
     road.position.set(0, 0.01, -470);
     road.receiveShadow = true;
@@ -51,7 +51,7 @@ export function createLightingAndWorld(scene) {
 
 export function createStars(scene) {
     const starVertices = [];
-    for (let i = 0; i < 10000; i++) {
+    for (let i = 0; i < 4000; i++) {
         const x = THREE.MathUtils.randFloatSpread(3000);
         const y = THREE.MathUtils.randFloatSpread(3000);
         const z = THREE.MathUtils.randFloatSpread(3000);
@@ -59,7 +59,7 @@ export function createStars(scene) {
     }
     const starGeometry = new THREE.BufferGeometry();
     starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+    const starMaterial = new THREE.PointsMaterial({ color: 0xf5e3c3, size: 0.6, transparent: true, opacity: 0.7 });
     const stars = new THREE.Points(starGeometry, starMaterial);
     scene.add(stars);
 }
@@ -71,28 +71,24 @@ export function createMoon(scene) {
     const context = canvas.getContext('2d');
     canvas.width = 512;
     canvas.height = 512;
-    context.fillStyle = '#f0f0e8';
+
+    const gradient = context.createRadialGradient(256, 256, 40, 256, 256, 256);
+    gradient.addColorStop(0, '#ffd4a3');
+    gradient.addColorStop(0.5, '#ffbb6c');
+    gradient.addColorStop(1, '#f07b42');
+    context.fillStyle = gradient;
     context.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 50; i++) {
-        const x = Math.random() * 512;
-        const y = Math.random() * 512;
-        const radius = Math.random() * 30 + 5;
-        const gray = Math.floor(Math.random() * 50 + 150);
-        context.fillStyle = `rgba(${gray}, ${gray}, ${gray}, ${Math.random() * 0.5 + 0.2})`;
-        context.beginPath();
-        context.arc(x, y, radius, 0, Math.PI * 2);
-        context.fill();
-    }
+
     const moonTexture = new THREE.CanvasTexture(canvas);
     const moonMaterial = new THREE.MeshStandardMaterial({
         map: moonTexture,
-        emissive: 0xffffff,
+        emissive: 0xffc48b,
         emissiveMap: moonTexture,
-        emissiveIntensity: 0.8,
+        emissiveIntensity: 0.6,
         transparent: true
     });
     const newMoon = new THREE.Mesh(moonGeometry, moonMaterial);
-    newMoon.position.set(200, 300, -800);
+    newMoon.position.set(200, 160, -700);
     newMoon.rotation.y = Math.PI;
     scene.add(newMoon);
     setMoon(newMoon);
