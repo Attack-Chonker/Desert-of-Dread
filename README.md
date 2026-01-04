@@ -14,7 +14,7 @@ This project is an experiment in creating a narrative-driven, first-person exper
 
 **Important:** You cannot simply open the `index.html` file in your browser. Modern web browsers have security features that prevent JavaScript modules from loading correctly from your local file system (`file:///...`). To run this experience, you **must** serve the files using a local web server.
 
-Here are two common ways to do this.
+Here are three common ways to do this.
 
 ### Method 1: The Easy Way (Using a Code Editor Extension)
 
@@ -51,6 +51,34 @@ If you are comfortable using the command line and have [Node.js](https://nodejs.
     ```
 
 Your browser will automatically open, and the experience will begin.
+
+### Method 3: Built-in Local Server (Node.js)
+
+If you prefer to keep everything contained in this repo, you can use the bundled lightweight server. You'll need [Node.js](https://nodejs.org/) v18 or newer installed.
+
+1.  **Install dependencies:** This project only uses Node's built-in modules, so there is nothing to install. (If you like, run `npm install` to generate a lockfile.)
+2.  **Start the server:**
+    ```bash
+    npm start
+    ```
+3.  **Open the game:** Visit [http://localhost:4173](http://localhost:4173) in your browser.
+
+To use a different port, start the server with `PORT=8080 npm start`.
+
+---
+
+## Push this project to your GitHub
+
+Once you're happy with your local changes, you can publish the `work` branch to your GitHub repository.
+
+1. Add your GitHub repo as a remote (replace the URL with your own):
+   ```bash
+   git remote add origin https://github.com/<your-username>/<your-repo>.git
+   ```
+2. Push the branch and set it as the upstream so future `git push` commands default to `work`:
+   ```bash
+   git push -u origin work
+   ```
 
 ---
 

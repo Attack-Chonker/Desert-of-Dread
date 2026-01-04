@@ -10,9 +10,43 @@ export class Controls {
         this.camera = camera;
         this.controls = new PointerLockControls(camera, domElement);
 
+        this.crosshair = document.getElementById('crosshair');
+        this.titleCard = document.getElementById('title-card');
+        this.resumeHint = document.getElementById('resume-hint');
+        this.startButton = document.getElementById('start-button');
+        this.resumeButton = document.getElementById('resume-button');
+
         domElement.addEventListener('click', () => {
             this.controls.lock();
             initAudio();
+        });
+
+        if (this.startButton) {
+            this.startButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.controls.lock();
+                initAudio();
+            });
+        }
+
+        if (this.resumeButton) {
+            this.resumeButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                this.controls.lock();
+            });
+        }
+
+        this.controls.addEventListener('lock', () => {
+            this._showCrosshair(true);
+            this._togglePanel(this.titleCard, false);
+            this._togglePanel(this.resumeHint, false);
+        });
+
+        this.controls.addEventListener('unlock', () => {
+            this._showCrosshair(false);
+            if (this.titleCard && this.titleCard.classList.contains('hidden')) {
+                this._togglePanel(this.resumeHint, true);
+            }
         });
 
         document.addEventListener('keydown', (event) => {
@@ -40,7 +74,7 @@ export class Controls {
     teleport(position) {
         this.controls.getObject().position.copy(position);
     }
- 
+
      handleInteraction() {
         let closestInteractable = null;
         let closestDist = 8; 
@@ -97,6 +131,24 @@ export class Controls {
             this.updateMovement(delta);
         }
         this.updateInteractionPrompt();
+    }
+
+    _showCrosshair(show) {
+        if (!this.crosshair) return;
+        if (show) {
+            this.crosshair.classList.remove('hidden');
+        } else {
+            this.crosshair.classList.add('hidden');
+        }
+    }
+
+    _togglePanel(panelEl, shouldShow) {
+        if (!panelEl) return;
+        if (shouldShow) {
+            panelEl.classList.remove('hidden');
+        } else {
+            panelEl.classList.add('hidden');
+        }
     }
 
     updateMovement(delta) {
