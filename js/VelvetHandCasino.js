@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights } from './state.js';
+import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, doors, setVelvetHandCasino } from './state.js';
 import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound } from './audio.js';
 import { Door } from './Door.js';
 import * as state from './state.js';
@@ -58,6 +58,7 @@ export function createVelvetHandCasino(scene, gameLoop) {
 
     // --- Interior ---
     const interiorGroup = new THREE.Group();
+    interiorGroup.name = 'interior';
     interiorGroup.visible = false; // Start with the interior hidden
     casinoGroup.add(interiorGroup);
 
@@ -400,6 +401,14 @@ function createWoodsman(parentGroup) {
     parentGroup.add(woodsman);
     setWoodsman(woodsman);
 
+    const woodsmanState = {
+        casinoLights: null,
+        timers: [],
+        flickerTimers: [],
+        markedMessage: null,
+        markedLight: null
+    };
+
     const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(2, 8, 2), bodyMaterial);
     body.position.y = 4;
@@ -410,21 +419,177 @@ function createWoodsman(parentGroup) {
     head.position.y = 9;
     woodsman.add(head);
 
+    const markedTexture = createNeonSignTexture('THE FIRE REMEMBERS');
+    const markedMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, map: markedTexture, transparent: true });
+    const markedMessage = new THREE.Mesh(new THREE.PlaneGeometry(12, 3), markedMaterial);
+    markedMessage.position.set(0, 9, 8);
+    markedMessage.visible = false;
+    parentGroup.add(markedMessage);
+    woodsmanState.markedMessage = markedMessage;
+
+    const markedLight = new THREE.PointLight(0xff0000, 0, 30, 2);
+    markedLight.position.copy(markedMessage.position).add(new THREE.Vector3(0, 1, 0));
+    parentGroup.add(markedLight);
+    woodsmanState.markedLight = markedLight;
+
+    const rememberLight = (light) => {
+        if (light.userData.originalIntensity === undefined) {
+            light.userData.originalIntensity = light.intensity;
+        }
+        if (light.userData.originalVisible === undefined) {
+            light.userData.originalVisible = light.visible;
+        }
+    };
+
+    const cacheCasinoLights = () => {
+        if (woodsmanState.casinoLights) return woodsmanState.casinoLights;
+        const lightSet = new Set();
+        parentGroup.traverse(child => {
+            if (child.isLight) {
+                lightSet.add(child);
+            }
+        });
+        state.flickeringLights.forEach(light => lightSet.add(light));
+        woodsmanState.casinoLights = Array.from(lightSet);
+        woodsmanState.casinoLights.forEach(rememberLight);
+        return woodsmanState.casinoLights;
+    };
+
+    const clearTimers = () => {
+        woodsmanState.timers.forEach(timer => clearTimeout(timer));
+        woodsmanState.timers = [];
+        woodsmanState.flickerTimers.forEach(timer => clearInterval(timer));
+        woodsmanState.flickerTimers = [];
+    };
+
+    const showMarkedMessage = (visible) => {
+        if (woodsmanState.markedMessage) woodsmanState.markedMessage.visible = visible;
+        if (woodsmanState.markedLight) {
+            woodsmanState.markedLight.visible = visible;
+            woodsmanState.markedLight.intensity = visible ? 12 : 0;
+        }
+    };
+
+    const setLightsMultiplier = (multiplier) => {
+        cacheCasinoLights();
+        woodsmanState.casinoLights.forEach(light => {
+            rememberLight(light);
+            light.visible = true;
+            light.intensity = (light.userData.originalIntensity || light.intensity) * multiplier;
+        });
+    };
+
+    const blackoutLights = () => {
+        cacheCasinoLights();
+        woodsmanState.casinoLights.forEach(light => {
+            rememberLight(light);
+            light.visible = true;
+            light.intensity = 0;
+        });
+    };
+
+    const restoreLights = () => {
+        cacheCasinoLights();
+        woodsmanState.casinoLights.forEach(light => {
+            rememberLight(light);
+            light.visible = light.userData.originalVisible !== undefined ? light.userData.originalVisible : true;
+            light.intensity = light.userData.originalIntensity !== undefined ? light.userData.originalIntensity : light.intensity;
+        });
+    };
+
+    const startFlicker = (strength) => {
+        cacheCasinoLights();
+        const flicker = () => {
+            woodsmanState.casinoLights.forEach(light => {
+                rememberLight(light);
+                const base = light.userData.originalIntensity || 1;
+                light.intensity = Math.max(0, base * (0.2 + Math.random() * strength));
+            });
+        };
+        flicker();
+        const interval = setInterval(flicker, 120);
+        woodsmanState.flickerTimers.push(interval);
+        woodsmanState.timers.push(setTimeout(() => clearInterval(interval), 1200 + strength * 200));
+    };
+
+    const silenceCasino = () => manageCasinoAudio(false);
+    const restoreCasinoAudio = () => manageCasinoAudio(true);
+
+    const concludeEncounter = () => {
+        clearTimers();
+        restoreLights();
+        restoreCasinoAudio();
+        showMarkedMessage(false);
+        woodsman.visible = false;
+        setCasinoState('active');
+    };
+
+    const handleMemoryTaken = () => {
+        blackoutLights();
+        woodsmanState.timers.push(setTimeout(() => {
+            state.setHasMemoryOfFace(true);
+            restoreLights();
+            concludeEncounter();
+            state.setWoodsmanPromptCount(0);
+            woodsmanInteractable.prompt = "Got a light?";
+        }, 900));
+    };
+
+    const handleLighterGift = () => {
+        blackoutLights();
+        showMarkedMessage(true);
+        state.setPlayerHasLighter(false);
+        state.setIsWoodsmanMarked(true);
+        state.setWoodsmanPromptCount(0);
+        woodsmanInteractable.prompt = "Your flame is gone. His mouth glows scarlet.";
+        woodsmanState.timers.push(setTimeout(() => {
+            concludeEncounter();
+        }, 2500));
+    };
+
+    const handleNoLighter = () => {
+        const promptCount = state.woodsmanPromptCount + 1;
+        state.setWoodsmanPromptCount(promptCount);
+        startFlicker(promptCount + 1);
+        setLightsMultiplier(0.25 + promptCount * 0.2);
+        woodsmanInteractable.prompt = promptCount >= 3 ? "His whisper is inches away." : "Got a light?";
+
+        const darknessDelay = 1400 + promptCount * 300;
+        woodsmanState.timers.push(setTimeout(() => {
+            blackoutLights();
+            if (promptCount >= 3) {
+                handleMemoryTaken();
+            } else {
+                woodsmanState.timers.push(setTimeout(() => {
+                    restoreLights();
+                    restoreCasinoAudio();
+                    woodsman.visible = false;
+                    setCasinoState('active');
+                    woodsmanState.timers.push(setTimeout(() => setCasinoState('woodsman'), 2500));
+                }, 800));
+            }
+        }, darknessDelay));
+    };
+
     const woodsmanInteractable = {
         mesh: woodsman,
         prompt: "Got a light?",
         onInteract: () => {
-            // This will be populated with the consequences of giving a light
-            if (playerHasLighter) { // Assuming a state variable for the lighter
-                console.log("You offer a light... The Woodsman inhales the flame. The world goes dark.");
-                // Plunge into darkness, show message, etc.
-                setCasinoState('inactive');
-                woodsman.visible = false;
+            clearTimers();
+            showMarkedMessage(false);
+            restoreLights();
+            silenceCasino();
+            setCasinoState('woodsman');
+            woodsman.visible = true;
+            startFlicker(state.woodsmanPromptCount + 1);
+
+            if (state.playerHasLighter) {
+                handleLighterGift();
+            } else if (state.isWoodsmanMarked) {
+                woodsmanInteractable.prompt = "The mark burns. He does not need your flame again.";
+                woodsmanState.timers.push(setTimeout(() => concludeEncounter(), 1500));
             } else {
-                console.log("You have no light. The Woodsman leans closer... and the world tears.");
-                // Player is "damaged", loses a memory, etc.
-                setCasinoState('active'); // Return to a "normal" casino state
-                woodsman.visible = false;
+                handleNoLighter();
             }
         }
     };

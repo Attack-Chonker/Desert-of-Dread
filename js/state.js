@@ -52,6 +52,9 @@ export let casinoState = 'inactive'; // 'inactive', 'active', 'jackpot', 'woodsm
 export let woodsman;
 export let slotMachine;
 export let hasCigaretteButt = false;
+export let woodsmanPromptCount = 0;
+export let isWoodsmanMarked = false;
+export let hasMemoryOfFace = false;
 
 
 // Game State
@@ -131,6 +134,10 @@ export function setCasinoState(newState) { casinoState = newState; }
 export function setWoodsman(newWoodsman) { woodsman = newWoodsman; }
 export function setSlotMachine(newSlotMachine) { slotMachine = newSlotMachine; }
 export function setHasCigaretteButt(value) { hasCigaretteButt = value; }
+export function setWoodsmanPromptCount(value) { woodsmanPromptCount = value; }
+export function setIsWoodsmanMarked(value) { isWoodsmanMarked = value; }
+export function setHasMemoryOfFace(value) { hasMemoryOfFace = value; }
+export function setPlayerHasLighter(value) { playerHasLighter = value; }
 
 // Red Room Setters
 export function setRedRoomState(newState) { redRoomState = newState; }
