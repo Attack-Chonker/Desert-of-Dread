@@ -412,9 +412,10 @@ export function createGasStation(scene, font) {
     entryPad.position.set(0, 0.15, buildingDepth / 2 + 4);
     stationGroup.add(entryPad);
 
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 1.2), steelMaterial);
-    bench.position.set(buildingWidth / 2 - 3, 1.2, buildingDepth / 2 + 3);
-    stationGroup.add(bench);
+    const sideBench = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 1.2), steelMaterial);
+    sideBench.position.set(buildingWidth / 2 - 3, 1.2, buildingDepth / 2 + 3);
+    stationGroup.add(sideBench);
+    colliders.push(sideBench);
 
     const trashCan = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 3, 16), new THREE.MeshStandardMaterial({ color: 0x2f2f2f, metalness: 0.3, roughness: 0.6 }));
     trashCan.position.set(-buildingWidth / 2 + 3, 1.5, buildingDepth / 2 + 3);
