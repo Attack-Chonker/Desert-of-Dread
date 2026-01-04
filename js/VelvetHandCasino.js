@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights } from './state.js';
+import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, setHasCigaretteButt } from './state.js';
 import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound } from './audio.js';
 import { Door } from './Door.js';
 import * as state from './state.js';
@@ -58,6 +58,7 @@ export function createVelvetHandCasino(scene, gameLoop) {
 
     // --- Interior ---
     const interiorGroup = new THREE.Group();
+    interiorGroup.name = 'interior';
     interiorGroup.visible = false; // Start with the interior hidden
     casinoGroup.add(interiorGroup);
 
@@ -176,7 +177,7 @@ function createOneArmedDreamer(parentGroup) {
             // 15% chance of winning
             if (Math.random() < 0.15) {
                 console.log("JACKPOT!");
-                slotMachineInteractable.prompt = "The machine falls silent.";
+                slotMachineInteractable.prompt = "The machine falls silent as a chill settles in.";
                 setCasinoState('jackpot');
             } else {
                 console.log("Nothing happens...");
@@ -359,8 +360,9 @@ function createRouletteTable(parentGroup) {
             // Spin animation
             let spinTime = 0;
             const spinDuration = 3; // seconds
-            const startAngle = eyeball.position.x;
-            const endAngle = Math.random() * Math.PI * 2 * 4; // Spin a few times
+            const radius = 3.5;
+            const startAngle = Math.atan2(eyeball.position.z, eyeball.position.x);
+            const endAngle = startAngle + Math.random() * Math.PI * 2 * 4; // Spin a few times
             function animateSpin(time) {
                 if (!animateSpin.lastTime) animateSpin.lastTime = time;
                 const deltaTime = (time - animateSpin.lastTime) / 1000;
@@ -370,8 +372,8 @@ function createRouletteTable(parentGroup) {
                 if (spinTime < spinDuration) {
                     const progress = spinTime / spinDuration;
                     const angle = startAngle + (endAngle - startAngle) * progress;
-                    eyeball.position.x = Math.cos(angle) * 3.5;
-                    eyeball.position.z = Math.sin(angle) * 3.5;
+                    eyeball.position.x = Math.cos(angle) * radius;
+                    eyeball.position.z = Math.sin(angle) * radius;
                     requestAnimationFrame(animateSpin);
                 } else {
                     animateSpin.lastTime = undefined;
@@ -379,7 +381,22 @@ function createRouletteTable(parentGroup) {
                     const winningSymbolIndex = Math.floor((finalAngle / (Math.PI * 2)) * 16);
                     const winningSymbol = symbols[winningSymbolIndex % symbols.length];
                     rouletteInteractable.prompt = `The eyeball lands on the ${winningSymbol.replace('_', ' ')}.`;
-                    // Trigger consequence based on symbol
+                    switch (winningSymbol) {
+                        case 'serpent':
+                            rouletteInteractable.prompt += " A chorus of whispers coils around you.";
+                            break;
+                        case 'broken_crown':
+                            rouletteInteractable.prompt += " The room looks ruined for a heartbeat.";
+                            break;
+                        case 'empty_throne':
+                            rouletteInteractable.prompt += " All other sounds die, leaving only a distant pulse.";
+                            break;
+                        case 'black_star':
+                            rouletteInteractable.prompt += " The lights protest and flicker violently.";
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
             requestAnimationFrame(animateSpin);

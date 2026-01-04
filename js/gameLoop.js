@@ -718,10 +718,8 @@ import { createDoppelganger } from './actors.js';
        // Flickering lights and dialogue
        if (Math.random() < 0.05) {
            console.log("Got a light?");
-           state.velvetHandCasino.children.forEach(child => {
-               if (child.isPointLight) {
-                   child.intensity = Math.random() * 2;
-               }
+           state.flickeringLights.forEach(light => {
+               light.intensity = Math.random() * 2;
            });
        }
     }
