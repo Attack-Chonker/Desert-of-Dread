@@ -3,8 +3,8 @@
 
 import * as THREE from 'three';
 import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights } from './state.js';
-import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound } from './audio.js';
+import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights, setHasDeadFly, hasDeadFly } from './state.js';
+import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound, playBlackjackLossGlitch, playBlackjackReliefChime } from './audio.js';
 import { Door } from './Door.js';
 import * as state from './state.js';
 
@@ -283,27 +283,78 @@ function createBlackjackTable(parentGroup) {
         cards.push(card);
     }
 
+    const defaultPrompt = "A game of Blackjack? The dealer smiles.";
+    blackjackGroup.userData.prompt = defaultPrompt;
+
+    const updateBlackjackPrompt = (text) => {
+        blackjackInteractable.prompt = text;
+        blackjackGroup.userData.prompt = text;
+    };
+
+    const flashCasinoLights = (multiplier = 0.6, duration = 300) => {
+        flickeringLights.forEach(light => {
+            const original = light.userData.originalIntensity ?? light.intensity;
+            light.userData.originalIntensity = original;
+            light.intensity = original * multiplier;
+            setTimeout(() => { light.intensity = light.userData.originalIntensity; }, duration);
+        });
+    };
+
+    const reshuffleCards = () => {
+        cards.forEach(card => {
+            if (card.material.map) card.material.map.dispose();
+            const cardSymbol = cardSymbols[Math.floor(Math.random() * cardSymbols.length)];
+            const newTexture = createBlackjackCardTexture(cardSymbol);
+            card.material.map = newTexture;
+            card.material.needsUpdate = true;
+            card.material.map.needsUpdate = true;
+            card.rotation.z = (Math.random() - 0.5) * 0.08;
+        });
+    };
+
+    const animateDealerHeadTurn = () => {
+        const startRotation = dealerHead.rotation.y;
+        const targetRotation = startRotation + Math.PI;
+        const startTime = performance.now();
+        const duration = 800;
+
+        const step = (now) => {
+            const t = Math.min((now - startTime) / duration, 1);
+            dealerHead.rotation.y = startRotation + (targetRotation - startRotation) * t;
+            if (t < 1) requestAnimationFrame(step);
+        };
+
+        requestAnimationFrame(step);
+    };
+
+    const awardDeadFly = () => {
+        if (!hasDeadFly) {
+            setHasDeadFly(true);
+        }
+    };
+
     const blackjackInteractable = {
         mesh: blackjackGroup,
-        prompt: "A game of Blackjack? The dealer smiles.",
+        prompt: defaultPrompt,
         onInteract: () => {
             playBlackjackCardSound();
+            reshuffleCards();
             console.log("You play a hand of Blackjack.");
-            // Simple game logic: just replace the cards
-            cards.forEach(card => {
-                const cardSymbol = cardSymbols[Math.floor(Math.random() * cardSymbols.length)];
-                card.material.map = createBlackjackCardTexture(cardSymbol);
-                card.material.needsUpdate = true;
-            });
             const outcome = Math.random();
             if (outcome < 0.4) { // Lose
-                blackjackInteractable.prompt = "You lose. The dealer's smile seems to widen.";
-                // Trigger minor psychological penalty
+                updateBlackjackPrompt("You lose. The dealer's smile seems to widen.");
+                playBlackjackLossGlitch();
+                flashCasinoLights(0.35, 420);
             } else if (outcome < 0.9) { // Win
-                blackjackInteractable.prompt = "You win. A fleeting sense of relief.";
+                updateBlackjackPrompt("You win. A fleeting sense of relief.");
+                playBlackjackReliefChime();
+                flashCasinoLights(1.15, 320);
             } else { // Blackjack
-                blackjackInteractable.prompt = "Blackjack! A single, perfect tear rolls down the dealer's cheek.";
-                // Give player a dead fly
+                updateBlackjackPrompt("Blackjack! The mannequin turns, a tear falling as a dead fly lands in your palm.");
+                playBlackjackReliefChime();
+                flashCasinoLights(1.35, 520);
+                animateDealerHeadTurn();
+                awardDeadFly();
             }
         }
     };

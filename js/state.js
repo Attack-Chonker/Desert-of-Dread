@@ -52,6 +52,7 @@ export let casinoState = 'inactive'; // 'inactive', 'active', 'jackpot', 'woodsm
 export let woodsman;
 export let slotMachine;
 export let hasCigaretteButt = false;
+export let hasDeadFly = false;
 
 
 // Game State
@@ -131,6 +132,7 @@ export function setCasinoState(newState) { casinoState = newState; }
 export function setWoodsman(newWoodsman) { woodsman = newWoodsman; }
 export function setSlotMachine(newSlotMachine) { slotMachine = newSlotMachine; }
 export function setHasCigaretteButt(value) { hasCigaretteButt = value; }
+export function setHasDeadFly(value) { hasDeadFly = value; }
 
 // Red Room Setters
 export function setRedRoomState(newState) { redRoomState = newState; }

@@ -499,6 +499,54 @@ export function playBlackjackCardSound() {
     osc.stop(now + 0.2);
 }
 
+export function playBlackjackLossGlitch() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+
+    const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.08, audioContext.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < noiseBuffer.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / noiseBuffer.length);
+    }
+
+    const noiseSource = audioContext.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(1800, now);
+
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+
+    noiseSource.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioContext.destination);
+
+    noiseSource.start(now);
+    noiseSource.stop(now + 0.25);
+}
+
+export function playBlackjackReliefChime() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(660, now);
+    osc.frequency.exponentialRampToValueAtTime(550, now + 0.35);
+
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+    osc.start(now);
+    osc.stop(now + 0.35);
+}
+
 export function playRouletteWheelSpinSound() {
     if (!audioContext) return;
     const now = audioContext.currentTime;
