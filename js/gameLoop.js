@@ -327,7 +327,7 @@ import { createDoppelganger } from './actors.js';
              this._updateRocketRide(delta);
          }
  
-         this._updateFlickeringLights();
+         this._updateFlickeringLights(time);
          this._updateDoors(delta);
          this._updateMDT(delta);
  
@@ -489,7 +489,7 @@ import { createDoppelganger } from './actors.js';
      }
  
      // Handles the flickering effect of certain lights in the scene.
-     _updateFlickeringLights() {
+     _updateFlickeringLights(time) {
          state.flickeringLights.forEach(light => {
              if (Math.random() > 0.9) {
                  const isOn = light.intensity > 0;
@@ -499,6 +499,29 @@ import { createDoppelganger } from './actors.js';
                      } else {
                          light.intensity = isOn ? 0 : 2;
                      }
+                 }
+             }
+         });
+
+         state.neonFlickers.forEach(config => {
+             const pulse = 0.5 + 0.5 * Math.sin(time * config.flickerSpeed + config.phase);
+             const jitter = (Math.random() - 0.5) * config.jitter;
+             const flickerAmount = THREE.MathUtils.clamp(pulse + jitter, 0, 1);
+
+             if (config.light) {
+                 const intensity = THREE.MathUtils.clamp(
+                     config.baseIntensity * (0.6 + flickerAmount * 0.8),
+                     config.minIntensity,
+                     config.maxIntensity
+                 );
+                 config.light.intensity = intensity;
+             }
+
+             if (config.material && config.baseColor && config.altColor) {
+                 const color = config.baseColor.clone().lerp(config.altColor, 0.25 + flickerAmount * 0.5);
+                 config.material.color.copy(color);
+                 if (config.material.opacity !== undefined && config.opacityRange) {
+                     config.material.opacity = config.opacityRange.min + (config.opacityRange.max - config.opacityRange.min) * flickerAmount;
                  }
              }
          });

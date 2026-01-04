@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights } from './state.js';
+import { audioContext, casinoAudioNodes, colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights, neonFlickers } from './state.js';
 import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound } from './audio.js';
 import { Door } from './Door.js';
 import * as state from './state.js';
@@ -55,6 +55,67 @@ export function createVelvetHandCasino(scene, gameLoop) {
     const signLight = new THREE.PointLight(0xff00ff, 20, 30, 2);
     signLight.position.set(0, 8, 28);
     casinoGroup.add(signLight);
+
+    const letterGeometry = new THREE.PlaneGeometry(1.6, 2.6);
+    const vMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff33cc,
+        map: createNeonSignTexture('V'),
+        transparent: true,
+        alphaTest: 0.5
+    });
+    const vMesh = new THREE.Mesh(letterGeometry, vMaterial);
+    vMesh.position.set(-signWidth / 2 + 1.1, 9.05, 25.25);
+    casinoGroup.add(vMesh);
+
+    const vLight = new THREE.PointLight(0xff33cc, 14, 15, 2);
+    vLight.position.set(vMesh.position.x, 8.6, 27.5);
+    casinoGroup.add(vLight);
+
+    const dMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff66ff,
+        map: createNeonSignTexture('d'),
+        transparent: true,
+        alphaTest: 0.5
+    });
+    const dMesh = new THREE.Mesh(letterGeometry, dMaterial);
+    dMesh.position.set(signWidth / 2 - 1.1, 9.05, 25.25);
+    casinoGroup.add(dMesh);
+
+    const dLight = new THREE.PointLight(0xff66ff, 12, 14, 2);
+    dLight.position.set(dMesh.position.x, 8.4, 27.2);
+    casinoGroup.add(dLight);
+
+    neonFlickers.push({
+        mesh: vMesh,
+        material: vMaterial,
+        light: vLight,
+        baseColor: new THREE.Color(0xff33cc),
+        altColor: new THREE.Color(0xff0088),
+        baseIntensity: vLight.intensity,
+        minIntensity: 6,
+        maxIntensity: 18,
+        flickerSpeed: 1.2 + Math.random() * 0.6,
+        jitter: 0.35,
+        phase: Math.random() * Math.PI * 2,
+        opacityRange: { min: 0.65, max: 1 }
+    });
+
+    neonFlickers.push({
+        mesh: dMesh,
+        material: dMaterial,
+        light: dLight,
+        baseColor: new THREE.Color(0xff66ff),
+        altColor: new THREE.Color(0xcc33ff),
+        baseIntensity: dLight.intensity,
+        minIntensity: 5,
+        maxIntensity: 16,
+        flickerSpeed: 0.9 + Math.random() * 0.5,
+        jitter: 0.25,
+        phase: Math.random() * Math.PI * 2,
+        opacityRange: { min: 0.7, max: 1 }
+    });
+
+    startExteriorSignBuzz(signLight.position);
 
     // --- Interior ---
     const interiorGroup = new THREE.Group();
@@ -240,6 +301,23 @@ function createNeonSigns(parentGroup) {
         const signLight = new THREE.PointLight(signInfo.color, 8, 25, 2);
         signLight.position.copy(signInfo.position);
         parentGroup.add(signLight);
+
+        const baseColor = new THREE.Color(signInfo.color);
+        const altColor = baseColor.clone().offsetHSL((Math.random() - 0.5) * 0.1, 0.05, (Math.random() - 0.5) * 0.1);
+        neonFlickers.push({
+            mesh: signMesh,
+            material: material,
+            light: signLight,
+            baseColor,
+            altColor,
+            baseIntensity: signLight.intensity,
+            minIntensity: signLight.intensity * 0.5,
+            maxIntensity: signLight.intensity * 1.5,
+            flickerSpeed: 0.6 + Math.random() * 0.8,
+            jitter: 0.3 + Math.random() * 0.3,
+            phase: Math.random() * Math.PI * 2,
+            opacityRange: { min: 0.65, max: 0.95 }
+        });
     });
 }
 
@@ -429,6 +507,45 @@ function createWoodsman(parentGroup) {
         }
     };
     interactables.push(woodsmanInteractable);
+}
+
+function startExteriorSignBuzz(position) {
+    if (!audioContext || casinoAudioNodes.signBuzzGain) return;
+
+    const buzzOscillator = audioContext.createOscillator();
+    buzzOscillator.type = 'sawtooth';
+    buzzOscillator.frequency.setValueAtTime(95, audioContext.currentTime);
+
+    const buzzGain = audioContext.createGain();
+    buzzGain.gain.setValueAtTime(0.02, audioContext.currentTime);
+
+    const tremolo = audioContext.createOscillator();
+    tremolo.type = 'sine';
+    tremolo.frequency.setValueAtTime(6.5, audioContext.currentTime);
+    const tremoloGain = audioContext.createGain();
+    tremoloGain.gain.setValueAtTime(0.012, audioContext.currentTime);
+    tremolo.connect(tremoloGain);
+    tremoloGain.connect(buzzGain.gain);
+
+    const panner = audioContext.createPanner();
+    panner.panningModel = 'HRTF';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = 5;
+    panner.maxDistance = 50;
+    panner.rolloffFactor = 1.5;
+    panner.setPosition(position.x, position.y, position.z);
+
+    buzzOscillator.connect(buzzGain);
+    buzzGain.connect(panner);
+    panner.connect(audioContext.destination);
+
+    buzzOscillator.start();
+    tremolo.start();
+
+    casinoAudioNodes.signBuzzOscillator = buzzOscillator;
+    casinoAudioNodes.signBuzzGain = buzzGain;
+    casinoAudioNodes.signBuzzPanner = panner;
+    casinoAudioNodes.signBuzzTremolo = tremolo;
 }
 
 /**

@@ -16,6 +16,7 @@ export const casinoAudioNodes = {};
 
 // Scene objects and materials
 export let flickeringLights = [];
+export let neonFlickers = [];
 export const interactables = [];
 export const doors = [];
 export const colliders = [];
