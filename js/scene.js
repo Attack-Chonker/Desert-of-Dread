@@ -7,10 +7,10 @@ import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUnifo
  */
 export function setupScene() {
     const scene = new THREE.Scene();
-    // A darker, more oppressive starting point. The color of a moonless desert night.
-    scene.background = new THREE.Color(0x020208);
-    // The fog is closer and thicker, enhancing the feeling of isolation.
-    scene.fog = new THREE.Fog(0x020208, 50, 700);
+    // A twilight backdrop with a hint of warmth. The desert exhales as the sun slips away.
+    scene.background = new THREE.Color(0x1c2f49);
+    // Softer evening haze to keep distant silhouettes visible while cooling the horizon.
+    scene.fog = new THREE.Fog(0x1a2740, 80, 900);
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(-150, 4, -460);
