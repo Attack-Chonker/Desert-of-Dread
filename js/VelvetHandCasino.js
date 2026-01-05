@@ -3,8 +3,8 @@
 
 import * as THREE from 'three';
 import { createChevronFloorTexture, createVelvetCurtainTexture, createSlotMachineTexture, createBlackjackCardTexture, createRouletteSymbolTexture, createNeonSignTexture } from './textures.js';
-import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights, setRuinVisionActive, setSurveillanceAlertActive } from './state.js';
-import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound, playSerpentWhispers, playRuinVisionSting, playHeartbeatSilence, playSurveillanceCue } from './audio.js';
+import { colliders, interactables, setCasinoState, setSlotMachine, setWoodsman, playerHasLighter, doors, setVelvetHandCasino, flickeringLights, setRuinVisionActive, setSurveillanceAlertActive, setHasCigaretteButt, setHasDeadFly, setCasinoPsychicDebt, setScreenShake, setMovementSpeed, setWoodsmanOutcome } from './state.js';
+import { playSlotMachineSpin, manageCasinoAudio, playBlackjackCardSound, playRouletteWheelSpinSound, playSerpentWhispers, playRuinVisionSting, playHeartbeatSilence, playSurveillanceCue, playBlackjackLossWhisper, playBlackjackWinRelief, playBlackjackBlackjackSting, playWoodsmanPossession, playWoodsmanMemoryDrain } from './audio.js';
 import { Door } from './Door.js';
 import * as state from './state.js';
 
@@ -270,6 +270,11 @@ function createBlackjackTable(parentGroup) {
     dealerHead.position.set(0, 4, 4);
     blackjackGroup.add(dealerHead);
 
+    const dealerTear = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.4), new THREE.MeshBasicMaterial({ color: 0x99ccff, transparent: true, opacity: 0 }));
+    dealerTear.position.set(0.2, 3.6, 4.9);
+    dealerTear.rotation.x = -Math.PI / 16;
+    blackjackGroup.add(dealerTear);
+
     // Cards
     const cardSymbols = ['weeping_eye', 'spiderweb', 'cracked_mirror', 'screaming_mouth'];
     const cards = [];
@@ -282,6 +287,24 @@ function createBlackjackTable(parentGroup) {
         blackjackGroup.add(card);
         cards.push(card);
     }
+
+    const deadFly = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.1, 8), new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.1, roughness: 0.9 }));
+    deadFly.position.set(0, 3.76, 2.6);
+    deadFly.visible = false;
+    blackjackGroup.add(deadFly);
+
+    const deadFlyInteractable = {
+        mesh: deadFly,
+        prompt: "A single, dead fly. A prize?",
+        onInteract: () => {
+            if (!deadFly.visible) return;
+            deadFly.visible = false;
+            setHasDeadFly(true);
+            setCasinoState('active');
+            const index = interactables.indexOf(deadFlyInteractable);
+            if (index > -1) interactables.splice(index, 1);
+        }
+    };
 
     const blackjackInteractable = {
         mesh: blackjackGroup,
@@ -297,17 +320,25 @@ function createBlackjackTable(parentGroup) {
             });
             const outcome = Math.random();
             if (outcome < 0.4) { // Lose
-                blackjackInteractable.prompt = "You lose. The dealer's smile seems to widen.";
-                // Trigger minor psychological penalty
+                blackjackInteractable.prompt = "You lose. The dealer's smile stretches unnaturally.";
+                dealerHead.scale.set(1.05, 0.9, 1.05);
+                playBlackjackLossWhisper();
+                inflictPsychicPenalty(0.5, 4);
             } else if (outcome < 0.9) { // Win
-                blackjackInteractable.prompt = "You win. A fleeting sense of relief.";
+                blackjackInteractable.prompt = "You win. The mannequin's painted grin twitches wider.";
+                dealerHead.rotation.z = Math.sin(Date.now() * 0.001) * 0.08;
+                playBlackjackWinRelief();
+                easePsychicDebts(0.2);
             } else { // Blackjack
                 blackjackInteractable.prompt = "Blackjack! A single, perfect tear rolls down the dealer's cheek.";
-                // Give player a dead fly
+                dealerTear.material.opacity = 0.85;
+                playBlackjackBlackjackSting();
+                grantDeadFly(deadFly, deadFlyInteractable);
             }
         }
     };
     interactables.push(blackjackInteractable);
+    interactables.push(deadFlyInteractable);
 }
 
 /**
@@ -392,22 +423,21 @@ function handleRouletteConsequence(winningSymbol, rouletteInteractable) {
     switch (winningSymbol) {
         case 'serpent':
             rouletteInteractable.prompt = "The eyeball lands on the serpent. Whispers coil around you.";
-            console.log("Surround-sound whispers hiss from every corner.");
             playSerpentWhispers();
+            inflictPsychicPenalty(0.35, 5);
             break;
         case 'broken_crown':
             rouletteInteractable.prompt = "The broken crown reveals ruin. Your vision fractures.";
-            console.log("A ruin-vision overlays the room.");
             triggerRuinVision();
+            inflictPsychicPenalty(0.25, 4);
             break;
         case 'empty_throne':
             rouletteInteractable.prompt = "Empty throne. Silence swallows the casino as your heartbeat pounds.";
-            console.log("Silence falls; only the heartbeat remains.");
             playHeartbeatSilence(10);
+            swallowCasinoLights(10, 0.1);
             break;
         case 'black_star':
             rouletteInteractable.prompt = "Black star. Lights stutter and an unseen lens focuses on you.";
-            console.log("Lights thrash violently under surveillance.");
             triggerViolentLightFlicker();
             playSurveillanceCue();
             setSurveillanceAlertActive(true);
@@ -451,6 +481,81 @@ function triggerViolentLightFlicker(duration = 4) {
     }, duration * 1000);
 }
 
+function swallowCasinoLights(duration = 6, floorIntensity = 0) {
+    const originals = flickeringLights.map(light => ({
+        light,
+        intensity: light.intensity
+    }));
+
+    flickeringLights.forEach(light => {
+        light.intensity = floorIntensity;
+    });
+
+    setTimeout(() => {
+        originals.forEach(({ light, intensity }) => {
+            light.intensity = intensity;
+        });
+    }, duration * 1000);
+}
+
+function inflictPsychicPenalty(amount = 0.25, duration = 3) {
+    const currentDebt = state.casinoPsychicDebt || 0;
+    setCasinoPsychicDebt(Math.min(1, currentDebt + amount));
+    setScreenShake({ duration, intensity: 0.015 + amount * 0.08 });
+    triggerShortFlicker(duration);
+}
+
+function easePsychicDebts(amount = 0.15) {
+    const currentDebt = state.casinoPsychicDebt || 0;
+    setCasinoPsychicDebt(Math.max(0, currentDebt - amount));
+}
+
+function triggerShortFlicker(duration = 2) {
+    const originals = flickeringLights.map(light => light.intensity);
+    let elapsed = 0;
+    const interval = setInterval(() => {
+        elapsed += 0.08;
+        flickeringLights.forEach(light => {
+            light.intensity = Math.max(0, originals[flickeringLights.indexOf(light)] + (Math.random() - 0.5) * 4);
+        });
+        if (elapsed > duration) {
+            clearInterval(interval);
+            flickeringLights.forEach((light, i) => { light.intensity = originals[i]; });
+        }
+    }, 80);
+}
+
+function grantDeadFly(deadFly, deadFlyInteractable) {
+    deadFly.visible = true;
+    if (!interactables.includes(deadFlyInteractable)) {
+        interactables.push(deadFlyInteractable);
+    }
+    setHasDeadFly(true);
+    setCasinoState('jackpot');
+}
+
+function woodsmanPossessesCasino(parentGroup) {
+    setCasinoState('woodsman');
+    setWoodsmanOutcome('possession');
+    playWoodsmanPossession();
+    swallowCasinoLights(5, 0);
+    triggerViolentLightFlicker(6);
+    inflictPsychicPenalty(0.6, 6);
+    parentGroup.rotation.y += 0.05;
+    setTimeout(() => {
+        setCasinoState('active');
+    }, 6000);
+}
+
+function woodsmanStealsMemory() {
+    setCasinoState('active');
+    setWoodsmanOutcome('memory_loss');
+    playWoodsmanMemoryDrain();
+    inflictPsychicPenalty(0.45, 5);
+    easePsychicDebts(0.05);
+    setMovementSpeed(Math.max(20, state.movementSpeed - 5));
+}
+
 
 /**
  * Creates the Woodsman entity.
@@ -477,18 +582,19 @@ function createWoodsman(parentGroup) {
         mesh: woodsman,
         prompt: "Got a light?",
         onInteract: () => {
-            // This will be populated with the consequences of giving a light
-            if (playerHasLighter) { // Assuming a state variable for the lighter
-                console.log("You offer a light... The Woodsman inhales the flame. The world goes dark.");
-                // Plunge into darkness, show message, etc.
-                setCasinoState('inactive');
-                woodsman.visible = false;
+            if (woodsmanInteractable.resolved) return;
+            woodsmanInteractable.resolved = true;
+
+            if (playerHasLighter) {
+                woodsmanInteractable.prompt = "His lungs drink the flame. Your body is not entirely yours.";
+                woodsmanPossessesCasino(parentGroup);
             } else {
-                console.log("You have no light. The Woodsman leans closer... and the world tears.");
-                // Player is "damaged", loses a memory, etc.
-                setCasinoState('active'); // Return to a "normal" casino state
-                woodsman.visible = false;
+                woodsmanInteractable.prompt = "No flame. He leans close and takes something else.";
+                woodsmanStealsMemory();
             }
+            setTimeout(() => {
+                woodsman.visible = false;
+            }, 600);
         }
     };
     interactables.push(woodsmanInteractable);

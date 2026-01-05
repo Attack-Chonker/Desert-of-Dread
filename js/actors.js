@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { createNoise2D } from 'simplex-noise';
 import { Door } from './Door.js';
-import { createZigZagFloorTexture, createVelvetCurtainTexture, createBrickTexture } from './textures.js';
+import { createZigZagFloorTexture, createVelvetCurtainTexture, createBrickTexture, createDesertSandTexture, createAsphaltTexture } from './textures.js';
 import { createVelvetHandCasino } from './VelvetHandCasino.js';
 import { playMeow } from './audio.js';
 import {
@@ -39,12 +39,14 @@ export function createLightingAndWorld(scene) {
     setMoonLight(newMoonLight);
 
     // Evening-warmed ground keeps detail without harsh highlights.
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.MeshStandardMaterial({ color: 0x6b5b4a, roughness: 0.85 }));
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x6b5b4a, roughness: 0.85, map: createDesertSandTexture() });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(5000, 15), new THREE.MeshStandardMaterial({ color: 0x262223 }));
+    const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x262223, roughness: 0.9, map: createAsphaltTexture() });
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(5000, 15), roadMaterial);
     road.rotation.x = -Math.PI / 2;
     road.position.set(0, 0.01, -470);
     road.receiveShadow = true;
