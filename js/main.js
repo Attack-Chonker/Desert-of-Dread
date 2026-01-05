@@ -10,7 +10,7 @@ import {
     createRoadhouse, createCat, createVoidPortalAndTentacles, createTrashCans,
     createGhostwood, createWaterTower, createTelephonePoles, createEnterableCar,
     createGasStationSign, createFace, createBlackLodge, createMountainRange, createDoubleRDiner, createRedRoom, createRocket,
-    createVelvetHandCasino
+    createVelvetHandCasino, createDraugr
 } from './actors.js';
 import { Controls } from './controls.js';
 import { GameLoop } from './gameLoop.js';
@@ -37,6 +37,7 @@ window.onload = function() {
     createWaterTower(scene);
     createTelephonePoles(scene);
     createEnterableCar(scene);
+    createDraugr(scene);
 
     // --- 3. Initialize Controls and Game Loop ---
     const controls = new Controls(camera, renderer.domElement);

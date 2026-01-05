@@ -331,6 +331,7 @@ import { createDoppelganger } from './actors.js';
         // Update individual systems and actors
         this._updateCatStateMachine(delta, time);
         this._updateConvenienceStore(delta, time);
+        this._updateDraugr(delta, time);
 
          if (state.isRocketRideActive) {
              this._updateRocketRide(delta);
@@ -518,10 +519,10 @@ import { createDoppelganger } from './actors.js';
          state.doors.forEach(door => door.update(delta));
      }
 
-     _updateConvenienceStore(delta, time) {
-         if (state.storeFan) {
-             state.storeFan.rotation.y += delta * 2.2;
-         }
+    _updateConvenienceStore(delta, time) {
+        if (state.storeFan) {
+            state.storeFan.rotation.y += delta * 2.2;
+        }
 
          if (state.storeClerk) {
              state.storeClerk.position.y = Math.sin(time * 1.2) * 0.05;
@@ -547,10 +548,71 @@ import { createDoppelganger } from './actors.js';
              state.storeCounterLamp.intensity = 1.4 + Math.sin(time * 0.8) * 0.25;
          }
 
-         if (state.storeInteriorLight) {
-             state.storeInteriorLight.intensity = 2 + Math.sin(time * 0.25) * 0.1;
-         }
-     }
+        if (state.storeInteriorLight) {
+            state.storeInteriorLight.intensity = 2 + Math.sin(time * 0.25) * 0.1;
+        }
+    }
+
+    _updateDraugr(delta, time) {
+        if (!state.draugr) return;
+
+        if (!state.draugrWanderTarget) {
+            state.setDraugrWanderTarget(state.draugr.position.clone());
+        }
+
+        const draugr = state.draugr;
+        const target = state.draugrWanderTarget.clone();
+
+        // Weight the wander target toward the player when they drift too close.
+        const distanceToPlayer = draugr.position.distanceTo(this.camera.position);
+        if (distanceToPlayer < 140 && Math.random() < 0.08) {
+            const offset = new THREE.Vector3(
+                THREE.MathUtils.randFloatSpread(40),
+                0,
+                THREE.MathUtils.randFloatSpread(40)
+            );
+            state.setDraugrWanderTarget(this.camera.position.clone().add(offset));
+        }
+
+        // Respawn wander target if the draugr has arrived or if it was never set.
+        const distanceToTarget = draugr.position.distanceTo(target);
+        if (distanceToTarget < 3 || Math.random() < 0.002) {
+            state.setDraugrWanderTarget(this._pickDraugrWanderTarget());
+            return;
+        }
+
+        const moveDirection = target.sub(draugr.position);
+        moveDirection.y = 0;
+        if (moveDirection.lengthSq() > 0.0001) {
+            moveDirection.normalize();
+            const wanderSpeed = 4.5 + Math.sin(time * 0.35) * 0.6;
+            draugr.position.add(moveDirection.multiplyScalar(wanderSpeed * delta));
+            draugr.lookAt(draugr.position.clone().add(moveDirection));
+        }
+
+        // Uneasy hover and flicker.
+        draugr.position.y = 0.35 + Math.sin(time * 0.6) * 0.25;
+        if (draugr.userData.light) {
+            const flicker = 0.35 + Math.sin(time * 3.2 + Math.cos(time * 1.5)) * 0.18;
+            draugr.userData.light.intensity = THREE.MathUtils.clamp(flicker, 0.12, 0.85);
+        }
+    }
+
+    _pickDraugrWanderTarget() {
+        const minRadius = 220;
+        const maxRadius = 950;
+        const centralXBuffer = 140;
+        const dinerZ = { min: -640, max: -300 };
+
+        let target = new THREE.Vector3();
+        do {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = THREE.MathUtils.randFloat(minRadius, maxRadius);
+            target.set(Math.cos(angle) * distance, 0.35, Math.sin(angle) * distance);
+        } while (Math.abs(target.x) < centralXBuffer && target.z < dinerZ.max && target.z > dinerZ.min);
+
+        return target;
+    }
 
     _updateRocketRide(delta) {
         if (!state.isPlayerInRocket) return;
