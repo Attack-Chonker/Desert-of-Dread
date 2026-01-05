@@ -34,6 +34,8 @@ export let storeClerkEyes;
 export let storeCoolerGlow;
 export let storeCounterLamp;
 export let storeInteriorLight;
+export let draugr;
+export let draugrWanderTarget = new THREE.Vector3();
 
 // Twin Peaks / Black Lodge state
 export let rocket;
@@ -115,6 +117,8 @@ export function setStoreClerkEyes(eyes) { storeClerkEyes = eyes; }
 export function setStoreCoolerGlow(light) { storeCoolerGlow = light; }
 export function setStoreCounterLamp(light) { storeCounterLamp = light; }
 export function setStoreInteriorLight(light) { storeInteriorLight = light; }
+export function setDraugr(newDraugr) { draugr = newDraugr; }
+export function setDraugrWanderTarget(target) { draugrWanderTarget = target; }
 
 export function setRocket(newRocket) { rocket = newRocket; }
 export function setIsPlayerInRocket(value) { isPlayerInRocket = value; }

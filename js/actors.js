@@ -16,7 +16,7 @@ import {
     setRedRoomState, setJukebox, setRedRoom, setHasOwlCaveCoin, hasOwlCaveCoin, setRedRoomMan,
     canExitLodge, setCanExitLodge, setRocket, catState, setCatState,
     setStoreFan, setStoreClerk, setStoreClerkHead, setStoreClerkEyes, setStoreCoolerGlow,
-    setStoreCounterLamp, setStoreInteriorLight
+    setStoreCounterLamp, setStoreInteriorLight, setDraugr, setDraugrWanderTarget
 } from './state.js';
 import { createCat as createOriginalCat, createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace } from './actors-original.js';
 
@@ -158,6 +158,94 @@ export function createMountainRange(scene) {
     generateMountainSide(Math.PI, new THREE.Vector3(0, 0, 2000)); // Front
     generateMountainSide(Math.PI / 2, new THREE.Vector3(-2000, 0, 0)); // Left
     generateMountainSide(-Math.PI / 2, new THREE.Vector3(2000, 0, 0)); // Right
+}
+
+export function createDraugr(scene) {
+    const draugr = new THREE.Group();
+
+    const boneMaterial = new THREE.MeshStandardMaterial({ color: 0xb7a58c, roughness: 0.95, metalness: 0.05 });
+    const clothMaterial = new THREE.MeshStandardMaterial({ color: 0x0b0b0f, roughness: 0.92, metalness: 0.08, transparent: true, opacity: 0.92 });
+    const frostMaterial = new THREE.MeshBasicMaterial({ color: 0x7fd5ff, transparent: true, opacity: 0.8 });
+
+    const shroud = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.6, 6.5, 10, 1, true), clothMaterial);
+    shroud.position.y = 3.25;
+    shroud.castShadow = true;
+    shroud.receiveShadow = true;
+    draugr.add(shroud);
+
+    const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4.5, 6), boneMaterial);
+    spine.position.y = 3.5;
+    spine.castShadow = true;
+    draugr.add(spine);
+
+    const ribcage = new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.1, 8, 14), boneMaterial);
+    ribcage.position.y = 3.5;
+    ribcage.rotation.x = Math.PI / 2;
+    ribcage.castShadow = true;
+    draugr.add(ribcage);
+
+    const skull = new THREE.Mesh(new THREE.SphereGeometry(1.05, 18, 14), boneMaterial);
+    skull.position.y = 5.8;
+    skull.castShadow = true;
+    draugr.add(skull);
+
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.4, 1.0), boneMaterial);
+    jaw.position.set(0, 5.0, 0.3);
+    jaw.rotation.x = Math.PI / 16;
+    draugr.add(jaw);
+
+    const hood = new THREE.Mesh(new THREE.ConeGeometry(1.8, 2.2, 12, 1, true), clothMaterial);
+    hood.position.set(0, 5.8, 0);
+    hood.rotation.x = Math.PI;
+    hood.castShadow = true;
+    draugr.add(hood);
+
+    const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), frostMaterial);
+    leftEye.position.set(0.35, 5.9, 0.95);
+    const rightEye = leftEye.clone();
+    rightEye.position.x = -0.35;
+    draugr.add(leftEye, rightEye);
+
+    const leftArm = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 3.2, 8), boneMaterial);
+    leftArm.position.set(1.4, 3.0, 0);
+    leftArm.rotation.z = -Math.PI / 4;
+    draugr.add(leftArm);
+
+    const rightArm = leftArm.clone();
+    rightArm.position.x = -1.4;
+    rightArm.rotation.z = Math.PI / 4;
+    draugr.add(rightArm);
+
+    const draggingHand = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 1.2), boneMaterial);
+    draggingHand.position.set(1.8, 1.2, 0.2);
+    draggingHand.rotation.x = Math.PI / 12;
+    draugr.add(draggingHand);
+
+    const frostLight = new THREE.PointLight(0x7fd5ff, 0.45, 70, 2);
+    frostLight.position.set(0, 5.2, 0);
+    draugr.add(frostLight);
+    draugr.userData.light = frostLight;
+
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.1, 0.6, 10), clothMaterial);
+    base.position.y = 0.3;
+    base.receiveShadow = true;
+    draugr.add(base);
+
+    const spawnRadius = 700;
+    const deadZone = 220;
+    let spawnPosition = new THREE.Vector3();
+    do {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = THREE.MathUtils.randFloat(deadZone, spawnRadius);
+        spawnPosition.set(Math.cos(angle) * distance, 0, Math.sin(angle) * distance);
+    } while (Math.abs(spawnPosition.x) < 140 && spawnPosition.z < -300 && spawnPosition.z > -640);
+
+    draugr.position.copy(spawnPosition);
+    draugr.lookAt(new THREE.Vector3(0, 0, -470));
+
+    scene.add(draugr);
+    setDraugr(draugr);
+    setDraugrWanderTarget(draugr.position.clone());
 }
 
 
