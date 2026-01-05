@@ -10,6 +10,8 @@ export class Controls {
         this.camera = camera;
         this.controls = new PointerLockControls(camera, domElement);
 
+        this._missingPromptWarned = false;
+
         this.crosshair = document.getElementById('crosshair');
         this.titleCard = document.getElementById('title-card');
         this.resumeHint = document.getElementById('resume-hint');
@@ -100,6 +102,15 @@ export class Controls {
 
     updateInteractionPrompt() {
         const prompt = document.getElementById('interaction-prompt');
+
+        if (!prompt) {
+            if (!this._missingPromptWarned) {
+                console.warn('Interaction prompt element is missing from the DOM.');
+                this._missingPromptWarned = true;
+            }
+            return;
+        }
+
         let closestInteractable = null;
         let closestDist = 8;
 
