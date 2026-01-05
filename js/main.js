@@ -15,6 +15,7 @@ import {
 import { Controls } from './controls.js';
 import { GameLoop } from './gameLoop.js';
 import * as state from './state.js';
+import { setupLiminalAreas } from './liminalAreas.js';
 
 // --- MAIN INITIALIZATION ---
 window.onload = function() {
@@ -40,6 +41,8 @@ window.onload = function() {
     // --- 3. Initialize Controls and Game Loop ---
     const controls = new Controls(camera, renderer.domElement);
     const gameLoop = new GameLoop(scene, camera, renderer, controls, face);
+    const liminalManager = setupLiminalAreas(scene, camera, controls);
+    gameLoop.attachLiminalManager(liminalManager);
 
     // --- 4. Create Actors ---
     createVelvetHandCasino(scene, gameLoop);
