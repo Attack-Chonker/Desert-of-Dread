@@ -499,6 +499,62 @@ export function playBlackjackCardSound() {
     osc.stop(now + 0.2);
 }
 
+export function playBlackjackLossWhisper() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const noiseBuffer = audioContext.createBuffer(1, audioContext.sampleRate * 1.2, audioContext.sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < output.length; i++) {
+        output[i] = (Math.random() * 2 - 1) * (1 - i / output.length) * 0.25;
+    }
+    const source = audioContext.createBufferSource();
+    source.buffer = noiseBuffer;
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 1200;
+    filter.Q.value = 15;
+    const gain = audioContext.createGain();
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(audioContext.destination);
+    source.start(now);
+    source.stop(now + 1.2);
+}
+
+export function playBlackjackWinRelief() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(420, now);
+    osc.frequency.linearRampToValueAtTime(260, now + 0.5);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start(now);
+    osc.stop(now + 0.5);
+}
+
+export function playBlackjackBlackjackSting() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 1.2);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start(now);
+    osc.stop(now + 1.2);
+}
+
 export function playRouletteWheelSpinSound() {
     if (!audioContext) return;
     const now = audioContext.currentTime;
@@ -663,4 +719,36 @@ export function playSurveillanceCue() {
 
     ping.start(now);
     ping.stop(now + 0.4);
+}
+
+export function playWoodsmanPossession() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const saw = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    saw.type = 'sawtooth';
+    saw.frequency.setValueAtTime(48, now);
+    saw.frequency.exponentialRampToValueAtTime(22, now + 5);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 5);
+    saw.connect(gain);
+    gain.connect(audioContext.destination);
+    saw.start(now);
+    saw.stop(now + 5);
+}
+
+export function playWoodsmanMemoryDrain() {
+    if (!audioContext) return;
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.linearRampToValueAtTime(80, now + 2.5);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start(now);
+    osc.stop(now + 2.5);
 }

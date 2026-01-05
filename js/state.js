@@ -55,6 +55,9 @@ export let casinoState = 'inactive'; // 'inactive', 'active', 'jackpot', 'woodsm
 export let woodsman;
 export let slotMachine;
 export let hasCigaretteButt = false;
+export let hasDeadFly = false;
+export let casinoPsychicDebt = 0;
+export let woodsmanOutcome = null; // 'possession' | 'memory_loss'
 
 
 // Game State
@@ -134,6 +137,9 @@ export function setCasinoState(newState) { casinoState = newState; }
 export function setWoodsman(newWoodsman) { woodsman = newWoodsman; }
 export function setSlotMachine(newSlotMachine) { slotMachine = newSlotMachine; }
 export function setHasCigaretteButt(value) { hasCigaretteButt = value; }
+export function setHasDeadFly(value) { hasDeadFly = value; }
+export function setCasinoPsychicDebt(value) { casinoPsychicDebt = value; }
+export function setWoodsmanOutcome(value) { woodsmanOutcome = value; }
 export function setRuinVisionActive(value) { ruinVisionActive = value; }
 export function setSurveillanceAlertActive(value) { surveillanceAlertActive = value; }
 

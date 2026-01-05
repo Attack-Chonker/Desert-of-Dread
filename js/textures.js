@@ -121,6 +121,58 @@ export function createChevronFloorTexture() {
     return texture;
 }
 
+export function createDesertSandTexture() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 512;
+    canvas.height = 512;
+
+    const base = ctx.createLinearGradient(0, 0, 0, 512);
+    base.addColorStop(0, '#7a664f');
+    base.addColorStop(1, '#4d3f31');
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, 512, 512);
+
+    for (let i = 0; i < 20000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const alpha = Math.random() * 0.2;
+        const size = Math.random() * 2;
+        ctx.fillStyle = `rgba(255, 229, 185, ${alpha})`;
+        ctx.fillRect(x, y, size, size);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(20, 20);
+    return texture;
+}
+
+export function createAsphaltTexture() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 512;
+    canvas.height = 512;
+
+    ctx.fillStyle = '#2a2626';
+    ctx.fillRect(0, 0, 512, 512);
+
+    for (let i = 0; i < 15000; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 512;
+        const alpha = Math.random() * 0.25;
+        ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`;
+        ctx.fillRect(x, y, 1, 1);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(10, 10);
+    return texture;
+}
+
 
 export function createBrickTexture() {
     const canvas = document.createElement('canvas');
