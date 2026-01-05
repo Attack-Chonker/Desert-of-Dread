@@ -41,7 +41,8 @@ import { createDoppelganger } from './actors.js';
             
             const jukeboxInteractable = state.interactables.find(i => i.prompt.includes('rock'));
             if (jukeboxInteractable) {
-                jukeboxInteractable.prompt = ".emit a evah ,klat s'teL"; // "Let's talk, have a time." reversed
+                const reversedJukeboxPrompt = [..."Let's talk, have a time."].reverse().join('');
+                jukeboxInteractable.prompt = reversedJukeboxPrompt; // "Let's talk, have a time." reversed
                 jukeboxInteractable.onInteract = () => {}; // The jukebox has served its purpose.
             }
 
