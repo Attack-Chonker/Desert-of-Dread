@@ -10,9 +10,15 @@ const PORT = process.env.PORT || 4173;
 
 const baseDir = path.resolve(__dirname);
 
-const server = createServer(async (req, res) => {
+export function createAppServer() {
+  return createServer(async (req, res) => {
   try {
     const urlPath = decodeURIComponent(new URL(req.url, `http://${req.headers.host}`).pathname);
+    if (urlPath.includes('..')) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('403 Forbidden');
+      return;
+    }
     const safePath = path.normalize(urlPath).replace(/^\/+/, '');
     let filePath = path.resolve(baseDir, safePath || 'index.html');
 
@@ -50,8 +56,17 @@ const server = createServer(async (req, res) => {
     res.writeHead(500, { 'Content-Type': 'text/plain' });
     res.end('500 Internal Server Error');
   }
-});
+  });
+}
 
-server.listen(PORT, () => {
-  console.log(`Desert of Dread running at http://localhost:${PORT}`);
-});
+export function startServer(port = PORT) {
+  const server = createAppServer();
+  server.listen(port, () => {
+    console.log(`The Desert Looks Back running at http://localhost:${port}`);
+  });
+  return server;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer();
+}
