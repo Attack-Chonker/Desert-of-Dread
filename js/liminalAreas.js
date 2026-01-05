@@ -179,114 +179,225 @@ function createSiltChokedRadioObservatory(manager) {
         returnPosition: new THREE.Vector3(-110, 4, -424),
         areaOrigin,
         transitionDuration: 3.5,
-        modulation: { fov: 12, movementSpeed: 30 },
+        modulation: { fov: 14, movementSpeed: 26 },
         missingAssets: ['Custom radio static beds', 'Dust and sand shaders for the dish bowl'],
         buildArea: ({ registerInteractable }) => {
             const group = new THREE.Group();
 
-            const ground = new THREE.Mesh(
-                new THREE.CircleGeometry(30, 32),
-                new THREE.MeshStandardMaterial({ color: 0x78675a, roughness: 0.95 })
-            );
+            const sandMaterial = new THREE.MeshStandardMaterial({ color: 0x8c7a66, roughness: 0.94, metalness: 0.05 });
+            const ground = new THREE.Mesh(new THREE.CircleGeometry(32, 48), sandMaterial);
             ground.rotation.x = -Math.PI / 2;
             ground.receiveShadow = true;
             group.add(ground);
 
-            const dish = new THREE.Mesh(
-                new THREE.SphereGeometry(14, 32, 32, 0, Math.PI),
-                new THREE.MeshStandardMaterial({ color: 0x8a8f9b, metalness: 0.3, roughness: 0.7 })
+            const duneMound = new THREE.Mesh(
+                new THREE.SphereGeometry(18, 32, 24),
+                new THREE.MeshStandardMaterial({ color: 0x9b8977, roughness: 0.92 })
             );
-            dish.scale.set(1, 0.5, 1);
-            dish.rotation.x = -Math.PI / 2.3;
-            dish.position.set(0, 2.5, 0);
+            duneMound.scale.set(1.4, 0.35, 1.2);
+            duneMound.position.set(-6, 2.5, -4);
+            duneMound.receiveShadow = true;
+            duneMound.userData.isDune = true;
+            group.add(duneMound);
+
+            const duneLip = new THREE.Mesh(
+                new THREE.TorusGeometry(16, 0.7, 12, 48),
+                new THREE.MeshStandardMaterial({ color: 0xa49683, roughness: 0.88 })
+            );
+            duneLip.rotation.x = Math.PI / 2;
+            duneLip.position.y = 0.8;
+            group.add(duneLip);
+
+            const dish = new THREE.Mesh(
+                new THREE.SphereGeometry(15, 48, 48, 0, Math.PI),
+                new THREE.MeshStandardMaterial({ color: 0x92979f, metalness: 0.42, roughness: 0.64, emissive: 0x111b27, emissiveIntensity: 0.25 })
+            );
+            dish.scale.set(1.05, 0.48, 1.05);
+            dish.rotation.x = -Math.PI / 2.35;
+            dish.position.set(0, 2.3, 0);
             dish.castShadow = true;
             dish.receiveShadow = true;
             group.add(dish);
 
-            const mast = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.4, 0.6, 8, 12),
-                new THREE.MeshStandardMaterial({ color: 0x4a525d, metalness: 0.4, roughness: 0.5 })
+            const rim = new THREE.Mesh(
+                new THREE.TorusGeometry(15.2, 0.4, 16, 64, Math.PI),
+                new THREE.MeshStandardMaterial({ color: 0x6f737c, metalness: 0.55, roughness: 0.3 })
             );
-            mast.position.set(0, 6, 0);
+            rim.rotation.x = Math.PI / 2;
+            rim.position.copy(dish.position);
+            rim.castShadow = true;
+            group.add(rim);
+
+            const mast = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.5, 0.65, 8.5, 16),
+                new THREE.MeshStandardMaterial({ color: 0x4d5865, metalness: 0.48, roughness: 0.48 })
+            );
+            mast.position.set(0, 6.2, 0);
             mast.castShadow = true;
             group.add(mast);
 
             const receiver = new THREE.Mesh(
-                new THREE.BoxGeometry(4, 1.5, 2.5),
-                new THREE.MeshStandardMaterial({ color: 0x2f2f2f, roughness: 0.4, metalness: 0.2, emissive: 0x111122, emissiveIntensity: 0.4 })
+                new THREE.BoxGeometry(4.3, 1.7, 2.8),
+                new THREE.MeshStandardMaterial({ color: 0x2b2f36, roughness: 0.35, metalness: 0.35, emissive: 0x151b2a, emissiveIntensity: 0.55 })
             );
-            receiver.position.set(-3, 1.2, 5);
+            receiver.position.set(-3.2, 1.35, 5.3);
             receiver.rotation.y = Math.PI / 8;
             receiver.castShadow = true;
             group.add(receiver);
 
-            const receiverLight = new THREE.PointLight(0x88b7ff, 1.2, 20, 2);
-            receiverLight.position.copy(receiver.position).add(new THREE.Vector3(0, 2, 0));
-            group.add(receiverLight);
-
-            const consoleTop = new THREE.Mesh(
-                new THREE.BoxGeometry(3.5, 0.4, 2.2),
-                new THREE.MeshStandardMaterial({ color: 0x1b1d26, emissive: 0x18203b, emissiveIntensity: 0.6 })
+            const receiverPanel = new THREE.Mesh(
+                new THREE.BoxGeometry(3.8, 0.3, 2.5),
+                new THREE.MeshStandardMaterial({ color: 0x11141c, emissive: 0x0f1a33, emissiveIntensity: 0.7 })
             );
-            consoleTop.position.copy(receiver.position).add(new THREE.Vector3(0, 1, 0));
-            group.add(consoleTop);
+            receiverPanel.position.copy(receiver.position).add(new THREE.Vector3(0, 1.05, 0));
+            group.add(receiverPanel);
 
             const tuningKnob = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.35, 0.35, 0.6, 16),
-                new THREE.MeshStandardMaterial({ color: 0xd1d5e5, metalness: 0.5, roughness: 0.4 })
+                new THREE.CylinderGeometry(0.45, 0.45, 0.7, 24),
+                new THREE.MeshStandardMaterial({ color: 0xd7dbe6, metalness: 0.52, roughness: 0.32 })
             );
             tuningKnob.rotation.z = Math.PI / 2;
-            tuningKnob.position.copy(consoleTop.position).add(new THREE.Vector3(0.8, 0.4, 0));
+            tuningKnob.position.copy(receiverPanel.position).add(new THREE.Vector3(1.1, 0.45, 0));
             group.add(tuningKnob);
+
+            const gauge = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.6, 0.6, 0.18, 20),
+                new THREE.MeshStandardMaterial({ color: 0x21242c, emissive: 0x0e1727, emissiveIntensity: 0.45 })
+            );
+            gauge.rotation.x = Math.PI / 2;
+            gauge.position.copy(receiverPanel.position).add(new THREE.Vector3(-0.9, 0.3, 0.9));
+            group.add(gauge);
+
+            const receiverLight = new THREE.PointLight(0x8fc8ff, 1.4, 22, 2);
+            receiverLight.position.copy(receiver.position).add(new THREE.Vector3(0, 2.3, 0));
+            group.add(receiverLight);
+
+            const fillLight = new THREE.HemisphereLight(0xb7c7e3, 0x2a1c12, 0.55);
+            fillLight.position.set(0, 18, 0);
+            group.add(fillLight);
+
+            const walkway = new THREE.Mesh(
+                new THREE.BoxGeometry(10, 0.4, 6),
+                new THREE.MeshStandardMaterial({ color: 0x5e5449, roughness: 0.8 })
+            );
+            walkway.position.set(-1.5, 0.2, 4.2);
+            walkway.rotation.y = Math.PI / 12;
+            walkway.receiveShadow = true;
+            group.add(walkway);
+
+            const railing = new THREE.Mesh(
+                new THREE.BoxGeometry(10, 0.08, 0.25),
+                new THREE.MeshStandardMaterial({ color: 0x8f8a7f, metalness: 0.4, roughness: 0.5 })
+            );
+            railing.position.copy(walkway.position).add(new THREE.Vector3(0, 0.85, -2.9));
+            group.add(railing);
 
             registerInteractable({
                 mesh: receiver,
-                prompt: 'Tune the dish? (placeholder static bed)',
+                prompt: 'Tune the dish? Rotate through signals.',
                 onInteract: (area) => {
-                    const readings = [
-                        'A clean carrier tone slices through the wind.',
-                        'Voices phase in and out. Words are lost.',
-                        'Only the rumble of dunes answers.',
-                        'A weather report for a town that never was.'
+                    const palettes = [
+                        {
+                            prompt: 'A beacon cuts in: a cold, steady carrier tone.',
+                            color: 0x9ccfff,
+                            rimColor: 0xb7c7e3,
+                            tint: 0x1e2e40,
+                            intensity: 1.6
+                        },
+                        {
+                            prompt: 'Faint voices rise then vanish beneath the wind.',
+                            color: 0xffe3b0,
+                            rimColor: 0xffc180,
+                            tint: 0x3f2b1b,
+                            intensity: 1.85
+                        },
+                        {
+                            prompt: 'Static washes over you like nearby surf.',
+                            color: 0x9ef0d0,
+                            rimColor: 0xa3f3ff,
+                            tint: 0x1c2f2b,
+                            intensity: 1.4
+                        },
+                        {
+                            prompt: 'A distorted weather report for nowhere in particular.',
+                            color: 0xff9aa2,
+                            rimColor: 0xfad7ff,
+                            tint: 0x3a1c2e,
+                            intensity: 2.0
+                        }
                     ];
-                    area.localState.tuning = (area.localState.tuning || 0) + 1;
-                    const idx = area.localState.tuning % readings.length;
+
+                    area.localState.tuningIndex = (area.localState.tuningIndex + 1) % palettes.length;
+                    const active = palettes[area.localState.tuningIndex];
                     const interactable = area.interactables.find(i => i.mesh === receiver);
                     if (interactable) {
-                        interactable.prompt = readings[idx];
+                        interactable.prompt = active.prompt;
                     }
+
                     receiver.rotation.y += Math.PI / 16;
-                    receiverLight.intensity = 1.2 + 0.4 * Math.sin(area.localState.tuning);
+                    tuningKnob.rotation.x += Math.PI / 18;
+                    receiver.material.emissive = new THREE.Color(active.tint);
+                    receiver.material.emissiveIntensity = 0.65;
+                    gauge.material.emissive = new THREE.Color(active.rimColor);
+                    gauge.material.emissiveIntensity = 0.9;
+                    receiverLight.color = new THREE.Color(active.color);
+                    receiverLight.intensity = active.intensity;
+                    fillLight.color = new THREE.Color(active.rimColor);
+                    dish.material.emissive = new THREE.Color(active.tint);
+                    dish.material.emissiveIntensity = 0.35 + (area.localState.tuningIndex % 2) * 0.1;
                 }
             });
 
             const exitLadder = new THREE.Mesh(
-                new THREE.BoxGeometry(1, 5, 0.4),
-                new THREE.MeshStandardMaterial({ color: 0x8b6f5a, roughness: 0.8 })
+                new THREE.BoxGeometry(1, 5.6, 0.45),
+                new THREE.MeshStandardMaterial({ color: 0x8b6f5a, roughness: 0.82 })
             );
-            exitLadder.position.set(6, 2.5, -4);
+            exitLadder.position.set(6.2, 2.8, -4.2);
             group.add(exitLadder);
+
+            const ladderRungs = new THREE.Mesh(
+                new THREE.BoxGeometry(0.9, 0.08, 0.42),
+                new THREE.MeshStandardMaterial({ color: 0x6b4f3f, roughness: 0.75 })
+            );
+            ladderRungs.position.copy(exitLadder.position).add(new THREE.Vector3(0, 0, 0));
+            ladderRungs.scale.y = 6;
+            group.add(ladderRungs);
+
+            const shadowLight = new THREE.SpotLight(0xd9c8b1, 1.1, 45, Math.PI / 4, 0.35, 1.8);
+            shadowLight.position.set(-12, 16, 6);
+            shadowLight.target.position.set(0, 1, 0);
+            group.add(shadowLight);
+            group.add(shadowLight.target);
 
             return {
                 group,
-                localState: { tuning: 0 },
+                localState: { tuningIndex: 0 },
                 exitInteractable: {
                     mesh: exitLadder,
-                    prompt: 'Slide down the silted ladder.'
-                }
+                    prompt: 'Climb the ladder back to the desert wind.'
+                },
+                exitTarget: shadowLight
             };
         },
         onTransitionInStep: (area, progress) => {
             area.group.rotation.y = Math.sin(progress * Math.PI) * 0.1;
         },
         onActive: (area, delta, time) => {
-            const wobble = Math.sin(time * 0.6) * 0.15;
+            const wobble = Math.sin(time * 0.6) * 0.12;
             area.group.rotation.y = wobble;
             const dish = area.group.children.find(c => c.geometry && c.geometry.type === 'SphereGeometry');
             if (dish) {
-                dish.material.emissive = new THREE.Color(0x223344);
-                dish.material.emissiveIntensity = 0.2 + 0.1 * Math.sin(time * 1.3 + area.localState.tuning);
+                dish.material.emissiveIntensity = 0.28 + 0.14 * Math.sin(time * 1.3 + area.localState.tuningIndex);
             }
+            const rim = area.group.children.find(c => c.geometry && c.geometry.type === 'TorusGeometry');
+            if (rim) {
+                rim.material.emissive = new THREE.Color(0x223244);
+                rim.material.emissiveIntensity = 0.1 + 0.05 * Math.cos(time * 0.9);
+            }
+            const dunes = area.group.children.filter(c => c.userData?.isDune);
+            dunes.forEach((dune, idx) => {
+                dune.position.y = 2.4 + Math.sin(time * 0.25 + idx) * 0.05;
+            });
         }
     });
 }
