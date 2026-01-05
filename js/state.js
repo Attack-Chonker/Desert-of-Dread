@@ -22,6 +22,7 @@ export let flickeringLights = [];
 export const interactables = [];
 export const doors = [];
 export const colliders = [];
+export const liminalAreas = [];
 
 // Actors
 export let cat, voidPortal, voidLight, catHead, moon, catMoon, moonLight, catMoonLight;

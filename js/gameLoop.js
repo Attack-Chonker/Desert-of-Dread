@@ -12,6 +12,7 @@ import { createDoppelganger } from './actors.js';
          this.camera = camera;
          this.renderer = renderer;
          this.controls = controls;
+         this.liminalManager = null;
          this.face = face;
          this.lodgeTransitionTimer = 0;
          this.redRoomTransitionTimer = 0;
@@ -31,6 +32,10 @@ import { createDoppelganger } from './actors.js';
 
     start() {
         this.animate();
+    }
+
+    attachLiminalManager(manager) {
+        this.liminalManager = manager;
     }
     
     triggerLodgeSequence() {
@@ -315,13 +320,16 @@ import { createDoppelganger } from './actors.js';
  
          this.controls.update(delta);
          
-         // Update major game sequences
-         this.updateLodge(delta, time);
-         this.updateRedRoom(delta, time);
-         this.updateCasino(delta, time);
-         
-         // Update individual systems and actors
-         this._updateCatStateMachine(delta, time);
+        // Update major game sequences
+        this.updateLodge(delta, time);
+        this.updateRedRoom(delta, time);
+        this.updateCasino(delta, time);
+        if (this.liminalManager) {
+            this.liminalManager.update(delta, time);
+        }
+
+        // Update individual systems and actors
+        this._updateCatStateMachine(delta, time);
         this._updateConvenienceStore(delta, time);
 
          if (state.isRocketRideActive) {
