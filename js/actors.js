@@ -20,7 +20,7 @@ import {
 } from './state.js';
 import { createCat as createOriginalCat, createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace } from './actors-original.js';
 
-export { createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace, createVelvetHandCasino, createDraugr };
+export { createVoidPortalAndTentacles, createTrashCans, createWaterTower, createTelephonePoles, createEnterableCar, createFace, createVelvetHandCasino };
 
 
 // --- WORLD CREATION ---
